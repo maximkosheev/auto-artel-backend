@@ -1,0 +1,15 @@
+{% extends 'layouts/default/page.html' %}
+
+{% load i18n %}
+
+{% block content %}
+
+    <h4>Выход</h4>
+
+    <p>Вы вышли из системы</p>
+
+    <p>
+        <a href="{% url 'home:login' %}">Войти снова</a>
+    </p>
+
+{% endblock content %}
