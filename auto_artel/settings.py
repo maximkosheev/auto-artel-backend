@@ -33,7 +33,8 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     # AutoArtel apps
     'home',
-    'api'
+    'api',
+    'orders'
 ]
 
 MIDDLEWARE = [

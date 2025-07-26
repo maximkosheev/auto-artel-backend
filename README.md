@@ -2,8 +2,19 @@
 
 Запуск с настройками для разработки
 
-1) Установить переменную окружения
+1) **Установить переменную окружения**
 Для nix-систем: export DJANGO_SETTINGS_MODULE=auto_artel.develop
 Для Windows PowerShell: $env:DJANGO_SETTINGS_MODULE="auto_artel.develop"
 
-2) python manage.py runserver
+2) **Миграции БД**
+   ```bash
+   python manage.py makemigrations home
+   python manage.py makemigrations orders
+   python manage.py migrate
+   ```
+
+3) **Создание групп и пользователей**
+   ```bash
+   python manage.py init
+   python manage.py createsuperuser
+   ```
