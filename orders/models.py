@@ -36,8 +36,19 @@ class Order(models.Model):
         ('PROCESSING', 'processing'),
         ('COMPLETED', 'completed')
     ]
+    CLIENT_STATUS_CHOICES = [
+        ('ASSIGNED', 'Менеджер принял заказ в работу'),
+        ('WAIT_APPROVAL', 'На согласовании с клиентом'),
+        ('WAIT_PAYMENT', 'Ждет оплаты'),
+        ('PAID', 'Оплачен'),
+        ('WAIT_SEND', 'Ждет отправки у поставщиков'),
+        ('DELIVERY', 'Отправлен'),
+        ('READY', 'Ждет выдачи в ПВЗ'),
+        ('FINISHED', 'Завершен')
+    ]
     id = models.BigAutoField(primary_key=True)
     status = models.CharField(choices=STATUS_CHOICES, default='NEW')
+    client_status = models.CharField(null=True, choices=CLIENT_STATUS_CHOICES)
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
     manager = models.ManyToManyField(Manager)
     created = models.DateTimeField(default=timezone.now)
