@@ -19,7 +19,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(f'Successfully created {name} group')
             )
-            return group
+        return group
 
     def _create_user(self, name, group):
         name_env = name.upper()

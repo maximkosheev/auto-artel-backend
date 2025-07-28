@@ -5,6 +5,8 @@
 1) **Установить переменную окружения**
 Для nix-систем: export DJANGO_SETTINGS_MODULE=auto_artel.develop
 Для Windows PowerShell: $env:DJANGO_SETTINGS_MODULE="auto_artel.develop"
+Заполнить следующие переменные окружения в файле .env:
+ - AUTO_ARTEL_BOT_PASSWORD: пароль пользователя телеграм бота
 
 2) **Миграции БД**
    ```bash
