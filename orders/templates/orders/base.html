@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Заказы</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Notification Popup Styles */
+        .notification-popup {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            padding: 16px 20px;
+            max-width: 300px;
+            z-index: 1000;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .notification-popup:hover {
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .notification-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .notification-text {
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            flex: 1;
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #666;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .notification-close:hover {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        /* Order List Styles */
+        .order-list-container {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .order-list-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .order-list-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .order-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .order-table th {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .order-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: middle;
+        }
+
+        .order-row:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .order-row:nth-child(odd) {
+            background-color: #fff;
+        }
+
+        .order-row.status-new {
+            background-color: #ffebee !important;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-new {
+            background-color: #ffcdd2;
+            color: #c62828;
+        }
+
+        .status-processing {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .status-completed {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status-cancelled {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        /* Context Menu Styles */
+        .context-menu-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            font-weight: bold;
+            color: #666;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .context-menu-btn:hover {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        .context-menu {
+            position: absolute;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            min-width: 120px;
+            display: none;
+        }
+
+        .context-menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            transition: background-color 0.2s ease;
+        }
+
+        .context-menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .context-menu-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Order Detail Styles */
+        .order-detail-container {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+
+        .order-detail-header {
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .order-detail-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .order-detail-field {
+            display: flex;
+            margin-bottom: 15px;
+            align-items: flex-start;
+        }
+
+        .order-detail-label {
+            font-weight: 600;
+            color: #495057;
+            min-width: 150px;
+            margin-right: 20px;
+        }
+
+        .order-detail-value {
+            color: #333;
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- Notification Popup Template -->
+    <div id="notification-popup" class="notification-popup">
+        <div class="notification-content">
+            <div class="notification-text" id="notification-text"></div>
+            <button class="notification-close" id="notification-close" onclick="closeNotification(event)">&times;</button>
+        </div>
+    </div>
+
+    <!-- Context Menu Template -->
+    <div id="context-menu" class="context-menu">
+        <div class="context-menu-item" onclick="openOrderDetail(currentOrderId)">Детали</div>
+        <div class="context-menu-item" onclick="openChat(currentOrderId)">Сообщения</div>
+        <div class="context-menu-item" onclick="deleteOrder(currentOrderId)">Удалить</div>
+    </div>
+
+    <script>
+        let currentOrderId = null;
+        let notificationTimeout = null;
+        let socket = null;
+
+        // WebSocket connection for real-time notifications
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/orders/`;
+
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = function(event) {
+                console.log('WebSocket connected');
+            };
+
+            socket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'order_notification') {
+                    showNotification(data.message);
+                }
+            };
+
+            socket.onclose = function(event) {
+                console.log('WebSocket closed');
+                // Reconnect after 5 seconds
+                setTimeout(connectWebSocket, 5000);
+            };
+
+            socket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        // Show notification popup
+        function showNotification(orderData) {
+            const popup = document.getElementById('notification-popup');
+            const text = document.getElementById('notification-text');
+
+            text.textContent = 'New order is registered';
+            popup.style.display = 'block';
+            popup.dataset.orderId = orderData.order_id;
+
+            // Auto-close after 30 seconds
+            if (notificationTimeout) {
+                clearTimeout(notificationTimeout);
+            }
+            notificationTimeout = setTimeout(() => {
+                closeNotification();
+            }, 30000);
+        }
+
+        // Close notification
+        function closeNotification(event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            const popup = document.getElementById('notification-popup');
+            popup.style.display = 'none';
+            if (notificationTimeout) {
+                clearTimeout(notificationTimeout);
+                notificationTimeout = null;
+            }
+        }
+
+        // Handle notification click (redirect to order detail)
+        document.getElementById('notification-popup').addEventListener('click', function(event) {
+            if (event.target.classList.contains('notification-close')) {
+                return;
+            }
+            const orderId = this.dataset.orderId;
+            if (orderId) {
+                window.open(`/orders/detail/${orderId}/`, '_blank');
+                closeNotification();
+            }
+        });
+
+        // Context menu functionality
+        function showContextMenu(event, orderId) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            currentOrderId = orderId;
+            const menu = document.getElementById('context-menu');
+
+            menu.style.display = 'block';
+            menu.style.left = event.pageX + 'px';
+            menu.style.top = event.pageY + 'px';
+        }
+
+        function hideContextMenu() {
+            const menu = document.getElementById('context-menu');
+            menu.style.display = 'none';
+            currentOrderId = null;
+        }
+
+        function openOrderDetail(orderId) {
+            window.open(`/orders/detail/${orderId}/`, '_blank');
+            hideContextMenu();
+        }
+
+        function openChat(orderId) {
+            // Placeholder for chat functionality
+            console.log('Opening chat for order:', orderId);
+            hideContextMenu();
+        }
+
+        function deleteOrder(orderId) {
+            // Placeholder for delete functionality
+            console.log('Deleting order:', orderId);
+            hideContextMenu();
+        }
+
+        // Hide context menu when clicking elsewhere
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.context-menu') && !event.target.closest('.context-menu-btn')) {
+                hideContextMenu();
+            }
+        });
+
+        // Initialize WebSocket connection
+        document.addEventListener('DOMContentLoaded', function() {
+            connectWebSocket();
+        });
+    </script>
+
+    {% block extra_js %}
+    {% endblock %}
+</body>
+</html>

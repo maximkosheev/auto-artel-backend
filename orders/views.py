@@ -1,3 +1,10 @@
 from django.shortcuts import render
+from django.views import generic
 
-# Create your views here.
+
+class OrderListView(generic.ListView):
+    pass
+
+
+class OrderDetailView(generic.DetailView):
+    pass

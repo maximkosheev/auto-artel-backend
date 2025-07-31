@@ -1,0 +1,40 @@
+{% extends 'orders/base.html' %}
+
+{% block content %}
+<div class="order-detail-container">
+    <div class="order-detail-header">
+        <h1 class="order-detail-title">Order Details</h1>
+    </div>
+
+    <div class="order-detail-field">
+        <div class="order-detail-label">Order Number:</div>
+        <div class="order-detail-value">{{ order.number_identifier }}</div>
+    </div>
+
+    <div class="order-detail-field">
+        <div class="order-detail-label">Client Name:</div>
+        <div class="order-detail-value">{{ order.client_name }}</div>
+    </div>
+
+    <div class="order-detail-field">
+        <div class="order-detail-label">Created Date:</div>
+        <div class="order-detail-value">{{ order.created_datetime|date:"M d, Y H:i:s" }}</div>
+    </div>
+
+    <div class="order-detail-field">
+        <div class="order-detail-label">Status:</div>
+        <div class="order-detail-value">
+            <span class="status-badge status-{{ order.status|lower }}">
+                {{ order.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <div class="order-detail-field">
+        <div class="order-detail-label">Description:</div>
+        <div class="order-detail-value">
+            {{ order.description|default:"No description provided" }}
+        </div>
+    </div>
+</div>
+{% endblock %>
