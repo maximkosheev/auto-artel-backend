@@ -1,5 +1,5 @@
 from django import forms
-from django.core.exceptions import ValidationError
+from django.core import exceptions
 from django.contrib.auth.models import User
 
 
@@ -19,6 +19,9 @@ class LoginForm(UserCacheMixin, forms.Form):
         user = User.objects.filter(username=username).first()
 
         if not user or not user.is_active or not user.check_password(password):
-            raise ValidationError(f"Пара логин/пароль не найдена или пользователь заблокирован")
+            raise exceptions.ValidationError(f"Пара логин/пароль не найдена или пользователь заблокирован")
+
+        if not user.has_perm('add_session'):
+            raise exceptions.PermissionDenied('У вас не разрешения на эту операцию')
 
         self.user_cache = user
