@@ -19,8 +19,11 @@ class Vehicle(models.Model):
 class Client(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.RESTRICT)
     name = models.CharField(help_text='Фамилия Имя Отчество')
-    phone = models.CharField(help_text='Телефон для связи', null=True)
+    phone = models.CharField(unique=True, help_text='Телефон для связи', null=True)
     telegram_id = models.BigIntegerField(editable=False, null=True)
+
+    def __str__(self):
+        return self.name
 
     @staticmethod
     def get_by_telegram_id(value):
