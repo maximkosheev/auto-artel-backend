@@ -1,19 +1,21 @@
 {% extends 'orders/base.html' %}
 
-{% block content %}
+{% block orders_content %}
 <div class="order-list-container">
     <div class="order-list-header">
-        <h1>Order Management</h1>
+        <h1>Заказы</h1>
     </div>
     
     <table class="order-table">
         <thead>
             <tr>
-                <th>Order Number</th>
-                <th>Client Name</th>
-                <th>Created Date</th>
+                <th>Номер</th>
+                <th>Клиент</th>
+                <th>Менеджер</th>
+                <th>Дата создания</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th>Кратко</th>
+                <th>Ещё...</th>
             </tr>
         </thead>
         <tbody>
@@ -21,12 +23,14 @@
             <tr class="order-row {% if order.status == 'NEW' %}status-new{% endif %}">
                 <td>{{ order.id }}</td>
                 <td>{{ order.client.name }}</td>
+                <td>{{ order.manager.name }}</td>
                 <td>{{ order.created|date:"M d, Y H:i" }}</td>
                 <td>
                     <span class="status-badge status-{{ order.status|lower }}">
                         {{ order.get_status_display }}
                     </span>
                 </td>
+                <td>{{ order.initial_requirements|truncatechars:50}}</td>
                 <td>
                     <button class="context-menu-btn" onclick="showContextMenu(event, {{ order.id }})">
                         ⋯

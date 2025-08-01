@@ -21,7 +21,7 @@ class LoginForm(UserCacheMixin, forms.Form):
         if not user or not user.is_active or not user.check_password(password):
             raise exceptions.ValidationError(f"Пара логин/пароль не найдена или пользователь заблокирован")
 
-        if not user.has_perm('add_session'):
+        if not user.has_perm('sessions.add_session'):
             raise exceptions.PermissionDenied('У вас не разрешения на эту операцию')
 
         self.user_cache = user

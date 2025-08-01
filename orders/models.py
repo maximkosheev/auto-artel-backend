@@ -42,10 +42,10 @@ class Manager(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = [
-        ('NEW', 'new'),
-        ('CANCELLED', 'cancelled'),
-        ('PROCESSING', 'processing'),
-        ('COMPLETED', 'completed')
+        ('NEW', 'Новый'),
+        ('CANCELLED', 'Отменен'),
+        ('PROCESSING', 'В работе'),
+        ('COMPLETED', 'Завершен')
     ]
     CLIENT_STATUS_CHOICES = [
         ('ASSIGNED', 'Менеджер принял заказ в работу'),
