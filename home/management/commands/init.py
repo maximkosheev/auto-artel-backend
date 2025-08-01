@@ -10,6 +10,7 @@ class Command(BaseCommand):
         api_group = self._create_group('api')
         manager_group = self._create_group('manager')
         client_group = self._create_group('client')
+        self._assign_group_permissions(manager_group, 'add_session')
         self._create_user(name='auto_artel_bot', group=api_group)
 
     def _create_group(self, name):
@@ -20,6 +21,19 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f'Successfully created {name} group')
             )
         return group
+
+    def _assign_group_permissions(self, group, permission_codename):
+        try:
+            permission = Permission.objects.get(codename=permission_codename)
+            group.permissions.add(permission)
+            group.save()
+            self.stdout.write(
+                self.style.SUCCESS(f'Successfully assign {permission_codename} to group {group.name}')
+            )
+        except Permission.DoesNotExist:
+            self.stdout.write(
+                self.style.ERROR(f'Permission {permission_codename} not found')
+            )
 
     def _create_user(self, name, group):
         name_env = name.upper()
