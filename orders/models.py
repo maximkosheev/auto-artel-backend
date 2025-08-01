@@ -37,7 +37,10 @@ class Client(models.Model):
 class Manager(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.RESTRICT)
     name = models.CharField(help_text='Фамилия Имя Отчество')
-    phone = models.CharField(help_text='Телефон для связи')
+    phone = models.CharField(help_text='Телефон для связи в формате +7XXXXXXXXXX')
+
+    def __str__(self):
+        return self.name
 
 
 class Order(models.Model):
