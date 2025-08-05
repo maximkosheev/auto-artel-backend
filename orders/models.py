@@ -68,3 +68,13 @@ class Order(models.Model):
     created = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(default=timezone.now)
     initial_requirements = models.TextField()
+
+
+class OrderItem(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    article_number = models.CharField(null=True, help_text='Артикул')
+    manufacture = models.CharField(null=True, help_text='Производитель')
+    name = models.CharField(null=True, help_text='Наименование')
+    price = models.DecimalField(null=True, max_digits=19, decimal_places=2, help_text='Стоимость')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+
