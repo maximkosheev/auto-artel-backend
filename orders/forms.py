@@ -15,6 +15,9 @@ class OrderForm(forms.ModelForm):
                 'placeholder': 'Пожелания клиента'
             }),
         }
+        labels = {
+            'initial_requirements': 'Исходные требования клиента'
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,15 +40,15 @@ class OrderItemForm(forms.ModelForm):
         widgets = {
             'article_number': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Article Number'
+                'placeholder': 'Артикул'
             }),
             'manufacture': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Manufacturer'
+                'placeholder': 'Производитель'
             }),
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Item Name'
+                'placeholder': 'Наименование'
             }),
             'price': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -53,6 +56,12 @@ class OrderItemForm(forms.ModelForm):
                 'min': '0',
                 'placeholder': '0.00'
             }),
+        }
+        labels = {
+            'article_number': 'Артикул',
+            'manufacture': 'Производитель',
+            'name': 'Наименование',
+            'price': 'Цена'
         }
 
 

@@ -246,10 +246,13 @@
 </style>
 {% endblock extra_style %}
 
+{% block orders_extra_style %}
+{% endblock orders_extra_style %}
+
 {% block content %}
     <div class="container">
         {% block orders_content %}
-        {% endblock %}
+        {% endblock orders_content %}
     </div>
 
     <!-- Notification Popup Template -->
@@ -393,6 +396,7 @@
         });
     </script>
 
-    {% block extra_js %}
-    {% endblock extra_js %}
+    {% block orders_extra_js %}
+    {% endblock orders_extra_js %}
+
 {% endblock content %}
