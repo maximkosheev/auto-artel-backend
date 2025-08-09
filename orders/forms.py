@@ -16,6 +16,7 @@ class OrderForm(forms.ModelForm):
             }),
         }
         labels = {
+            'client': 'Клиент',
             'initial_requirements': 'Исходные требования клиента'
         }
 

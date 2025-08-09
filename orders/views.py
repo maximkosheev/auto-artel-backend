@@ -27,7 +27,8 @@ class OrderFormMixin(FormMixin):
         context = super().get_context_data(**kwargs)
 
         if self.request.POST:
-            context['formset'] = OrderItemFormSet(self.request.POST, instance=self.object)
+            formset_data = self.request.POST
+            context['formset'] = OrderItemFormSet(formset_data, instance=self.object)
         else:
             context['formset'] = OrderItemFormSet(instance=self.object)
 
@@ -61,19 +62,9 @@ class OrderFormMixin(FormMixin):
         return super().form_invalid(form)
 
 
-class OrderCreateView(OrderFormMixin, generic.CreateView):
+class OrderUpdateView(IsManagerMixin, OrderFormMixin, generic.UpdateView):
     def get_success_url(self):
-        return reverse('edit', kwargs={'pk': self.object.pk})
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page_title'] = 'Create New Order'
-        return context
-
-
-class OrderUpdateView(OrderFormMixin, generic.UpdateView):
-    def get_success_url(self):
-        return reverse('edit', kwargs={'pk': self.object.pk})
+        return reverse('orders:edit', kwargs={'pk': self.object.pk})
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -87,5 +78,5 @@ class OrderListView(IsManagerMixin, generic.ListView):
     context_object_name = 'orders'
 
 
-class OrderDetailView(generic.DetailView):
+class OrderDetailView(IsManagerMixin, generic.DetailView):
     pass

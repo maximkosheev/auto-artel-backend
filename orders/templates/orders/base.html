@@ -266,6 +266,7 @@
     <!-- Context Menu Template -->
     <div id="context-menu" class="context-menu">
         <div class="context-menu-item" onclick="openOrderDetail(currentOrderId)">Детали</div>
+        <div class="context-menu-item" onclick="editOrder(currentOrderId)">Редактировать</div>
         <div class="context-menu-item" onclick="openChat(currentOrderId)">Сообщения</div>
         <div class="context-menu-item" onclick="deleteOrder(currentOrderId)">Удалить</div>
     </div>
@@ -368,6 +369,11 @@
 
         function openOrderDetail(orderId) {
             window.open(`/orders/detail/${orderId}/`, '_blank');
+            hideContextMenu();
+        }
+
+        function editOrder(orderId) {
+            window.open(`/orders/${orderId}/edit/`, '_blank');
             hideContextMenu();
         }
 
