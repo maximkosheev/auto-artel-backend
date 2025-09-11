@@ -90,6 +90,12 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
         return client
 
 
+class ClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Client
+        fields = '__all__'
+
+
 class CreateVehicleSerializer(serializers.ModelSerializer):
     client_telegram_id = serializers.IntegerField(required=False, write_only=True)
     client_phone = serializers.CharField(required=False, validators=[validators.phone_validator])
