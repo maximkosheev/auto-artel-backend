@@ -2,17 +2,21 @@ import re
 from django import forms
 
 from orders.models import Client, Manager
+from utils import phone_utils
 
 
 def phone_validator(value):
-    pattern = re.compile("^\\+7\\d{10}$",
-                         re.RegexFlag.M)
-    if not re.match(pattern, value):
+    if not phone_utils.validate(value):
         raise forms.ValidationError("Телефон не соответствует формату")
 
 
+class PhoneNumberField(forms.CharField):
+    def prepare_value(self, value):
+        return phone_utils.after_read_from_db(value)
+
+
 class ClientForm(forms.ModelForm):
-    phone = forms.CharField(label='Телефон', help_text='Телефон в формате "+7XXXXXXXXXX"', validators=[phone_validator])
+    phone = PhoneNumberField(label='Телефон', help_text='Телефон в формате "+7XXXXXXXXXX"', validators=[phone_validator])
 
     class Meta:
         model = Client
@@ -21,6 +25,10 @@ class ClientForm(forms.ModelForm):
             "name": "Имя"
         }
         fields = ['user', 'name']
+
+    def clean_phone(self):
+        data = self.cleaned_data['phone']
+        return phone_utils.before_save_to_db(data)
 
     def save(self, commit=True):
         client = super(ClientForm, self).save(commit)

@@ -1,11 +1,12 @@
 import uuid
+
+from django.contrib.auth.models import User, Group
 from rest_framework import serializers
 from rest_framework.fields import empty
-from django.contrib.auth.models import User, Group
 
 from orders.models import Order, Client, Vehicle
 from . import validators
-
+from utils import phone_utils
 
 def get_client(client_phone, client_telegram_id):
     if client_telegram_id and client_phone:
@@ -83,6 +84,8 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
         return user
 
     def create(self, validated_data):
+        validated_data['phone'] = phone_utils.before_save_to_db(validated_data['phone'])
+
         client = Client.objects.create(
             user=self._create_user(),
             **validated_data
