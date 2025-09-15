@@ -5,8 +5,9 @@ from rest_framework import serializers
 from rest_framework.fields import empty
 
 from orders.models import Order, Client, Vehicle
-from . import validators
 from utils import phone_utils
+from . import validators
+
 
 def get_client(client_phone, client_telegram_id):
     if client_telegram_id and client_phone:
@@ -126,3 +127,17 @@ class CreateVehicleSerializer(serializers.ModelSerializer):
             model=validated_data['model'],
             year=validated_data['year']
         )
+
+
+class VehicleListSerialize(serializers.ModelSerializer):
+    class Meta:
+        model = Vehicle
+        fields = ['id', 'vin', 'manufacture', 'model', 'year']
+
+
+class ClientDetailSerializer(serializers.ModelSerializer):
+    vehicleList = VehicleListSerialize(read_only=True, many=True)
+
+    class Meta:
+        model = Client
+        fields = ['name', 'phone', 'telegram_id', 'vehicleList']

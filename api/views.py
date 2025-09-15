@@ -1,6 +1,6 @@
 from django.db.models import Q
 from rest_framework import status
-from rest_framework.generics import ListCreateAPIView
+from rest_framework.generics import RetrieveAPIView, ListCreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -45,6 +45,18 @@ class ClientView(ListCreateAPIView):
         print(queryset.query)
         serializer = serializers.ClientSerializer(queryset, many=True)
         return Response(serializer.data)
+
+
+class ClientDetailView(RetrieveAPIView):
+    permission_classes = [IsApiUser]
+    serializer_class = serializers.ClientDetailSerializer
+
+    def get(self, request, **kwargs):
+        telegram_id = kwargs.pop('telegram_id')
+        client = Client.objects.filter(telegram_id=telegram_id).first()
+        if client is None:
+            return Response(data=f"Client {telegram_id} not found", status=404)
+        return Response(self.serializer_class(client).data)
 
 
 class VehicleView(APIView):

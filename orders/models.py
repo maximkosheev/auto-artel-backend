@@ -13,7 +13,7 @@ class Vehicle(models.Model):
     manufacture = models.CharField(help_text='Производитель')
     model = models.CharField(help_text='Модель')
     year = models.IntegerField(help_text='Год выпуска')
-    client = models.ForeignKey('Client', on_delete=models.RESTRICT)
+    client = models.ForeignKey('Client', related_name='vehicleList', on_delete=models.RESTRICT)
 
 
 class Client(models.Model):
