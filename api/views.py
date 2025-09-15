@@ -1,6 +1,6 @@
 from django.db.models import Q
 from rest_framework import status
-from rest_framework.generics import RetrieveAPIView, ListCreateAPIView
+from rest_framework.generics import RetrieveAPIView, ListCreateAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,10 +23,10 @@ def query_param_as_array(query_param: str) -> list[str]:
 
 class ClientView(ListCreateAPIView):
     permission_classes = [IsApiUser]
-    serializer_class = serializers.ClientRegisterSerializer
+    lookup_field = ['telegram_id', 'phone']
 
     def post(self, request, **kwargs):
-        serializer = self.serializer_class(data=request.data, instance=None)
+        serializer = serializers.ClientRegisterSerializer(data=request.data, instance=None)
         if not serializer.is_valid():
             return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
         serializer.save()
@@ -46,17 +46,22 @@ class ClientView(ListCreateAPIView):
         serializer = serializers.ClientSerializer(queryset, many=True)
         return Response(serializer.data)
 
+    def get_paginated_response(self, data):
+        pass
+
 
 class ClientDetailView(RetrieveAPIView):
     permission_classes = [IsApiUser]
     serializer_class = serializers.ClientDetailSerializer
+    queryset = Client.objects.all()
+    lookup_field = ['telegram_id']
 
-    def get(self, request, **kwargs):
-        telegram_id = kwargs.pop('telegram_id')
-        client = Client.objects.filter(telegram_id=telegram_id).first()
-        if client is None:
-            return Response(data=f"Client {telegram_id} not found", status=404)
-        return Response(self.serializer_class(client).data)
+    def get_object(self):
+        client_filter = {}
+        for field in self.lookup_field:
+            if self.kwargs.get(field):
+                client_filter[field] = self.kwargs[field]
+        return get_object_or_404(queryset=self.queryset, **client_filter)
 
 
 class VehicleView(APIView):
