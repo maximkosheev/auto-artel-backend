@@ -7,6 +7,7 @@ from rest_framework.fields import empty
 from orders.models import Order, Client, Vehicle
 from utils import phone_utils
 from . import validators
+from utils.phone_utils import before_save_to_db, after_read_from_db
 
 
 def get_client(client_phone, client_telegram_id):
@@ -35,9 +36,24 @@ def is_client_exists(client_phone, client_telegram_id):
         raise serializers.ValidationError("Either 'client_telegram_id' or 'client_phone' must be provided")
 
 
+class ClientPhoneField(serializers.CharField):
+    default_validators = [validators.phone_validator]
+
+    def to_internal_value(self, data):
+        return before_save_to_db(data)
+
+    def run_validators(self, value):
+        # Добавляем лидирующий символ '+' перед значением, чтобы пройти валидацию.
+        # Это нужно, потому что в БД телефон храниться без '+', но для валидации он нужен
+        super().run_validators(f"+{value}")
+
+    def to_representation(self, value):
+        return after_read_from_db(value)
+
+
 class OrderCreateSerializer(serializers.ModelSerializer):
     client_telegram_id = serializers.IntegerField(required=False, write_only=True)
-    client_phone = serializers.CharField(required=False, validators=[validators.phone_validator])
+    client_phone = ClientPhoneField(required=False, write_only=True)
 
     class Meta:
         model = Order
@@ -57,13 +73,13 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         order = Order.objects.create(
             client=self.client,
-            **validated_data
+            initial_requirements=validated_data['initial_requirements']
         )
         return order
 
 
 class ClientRegisterSerializer(serializers.ModelSerializer):
-    phone = serializers.CharField(validators=[validators.phone_validator])
+    phone = ClientPhoneField()
 
     class Meta:
         model = Client
@@ -102,7 +118,7 @@ class ClientSerializer(serializers.ModelSerializer):
 
 class CreateVehicleSerializer(serializers.ModelSerializer):
     client_telegram_id = serializers.IntegerField(required=False, write_only=True)
-    client_phone = serializers.CharField(required=False, validators=[validators.phone_validator])
+    client_phone = ClientPhoneField(required=False)
 
     class Meta:
         model = Vehicle
