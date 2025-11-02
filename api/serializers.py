@@ -116,13 +116,26 @@ class ClientSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class CreateVehicleSerializer(serializers.ModelSerializer):
-    client_telegram_id = serializers.IntegerField(required=False, write_only=True)
-    client_phone = ClientPhoneField(required=False)
+class VehicleSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    vin = serializers.CharField(required=False, allow_null=True)
+    manufacture = serializers.CharField()
+    model = serializers.CharField()
+    year = serializers.IntegerField()
 
     class Meta:
         model = Vehicle
-        fields = ['client_telegram_id', 'client_phone', 'vin', 'manufacture', 'model', 'year']
+        fields = ['id', 'vin', 'manufacture', 'model', 'year']
+
+
+class CreateVehicleSerializer(serializers.Serializer):
+    client_telegram_id = serializers.IntegerField(required=False, write_only=True)
+    client_phone = ClientPhoneField(required=False)
+    vehicle = VehicleSerializer()
+
+    class Meta:
+        model = Vehicle
+        fields = ['client_telegram_id', 'client_phone', 'vehicle']
 
     def __init__(self, instance, data=empty, **kwargs):
         super().__init__(instance, data, **kwargs)
@@ -138,21 +151,15 @@ class CreateVehicleSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return Vehicle.objects.create(
             client=self.client,
-            vin=validated_data['vin'],
-            manufacture=validated_data['manufacture'],
-            model=validated_data['model'],
-            year=validated_data['year']
+            vin=validated_data['vehicle']['vin'],
+            manufacture=validated_data['vehicle']['manufacture'],
+            model=validated_data['vehicle']['model'],
+            year=validated_data['vehicle']['year']
         )
 
 
-class VehicleListSerialize(serializers.ModelSerializer):
-    class Meta:
-        model = Vehicle
-        fields = ['id', 'vin', 'manufacture', 'model', 'year']
-
-
 class ClientDetailSerializer(serializers.ModelSerializer):
-    vehicleList = VehicleListSerialize(read_only=True, many=True)
+    vehicleList = VehicleSerializer(read_only=True, many=True)
 
     class Meta:
         model = Client

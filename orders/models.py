@@ -9,7 +9,7 @@ def vin_validator(value):
 
 
 class Vehicle(models.Model):
-    vin = models.CharField(unique=True, validators=[vin_validator])
+    vin = models.CharField(unique=True, null=True, validators=[vin_validator])
     manufacture = models.CharField(help_text='Производитель')
     model = models.CharField(help_text='Модель')
     year = models.IntegerField(help_text='Год выпуска')

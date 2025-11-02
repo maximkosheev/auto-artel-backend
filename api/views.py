@@ -69,6 +69,7 @@ class VehicleView(APIView):
     serializers_class = serializers.CreateVehicleSerializer
 
     def post(self, request):
+        print(f"Vehicle register request: {request.data}")
         serializer = self.serializers_class(data=request.data, instance=None)
         if not serializer.is_valid():
             return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
