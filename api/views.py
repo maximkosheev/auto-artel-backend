@@ -1,12 +1,19 @@
 from django.db.models import Q
 from rest_framework import status
-from rest_framework.generics import RetrieveAPIView, ListCreateAPIView, get_object_or_404
+from rest_framework.generics import (
+    RetrieveAPIView,
+    ListAPIView,
+    ListCreateAPIView,
+    get_object_or_404)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from orders.models import Client
-from . import serializers
+from api.serializers.client_serializers import ClientRegisterSerializer, ClientDetailSerializer, ClientSerializer
+from api.serializers.order_serializers import OrderSerializer, OrderCreateSerializer
+from api.serializers.vehicle_serializers import CreateVehicleSerializer
+from orders.models import Client, Order
+from django.db import connection
 
 
 class IsApiUser(IsAuthenticated):
@@ -26,7 +33,7 @@ class ClientView(ListCreateAPIView):
     lookup_field = ['telegram_id', 'phone']
 
     def post(self, request, **kwargs):
-        serializer = serializers.ClientRegisterSerializer(data=request.data, instance=None)
+        serializer = ClientRegisterSerializer(data=request.data, instance=None)
         if not serializer.is_valid():
             return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
         serializer.save()
@@ -42,8 +49,7 @@ class ClientView(ListCreateAPIView):
         if phone:
             where &= Q(phone__in=query_param_as_array(phone))
         queryset = Client.objects.filter(where)
-        print(queryset.query)
-        serializer = serializers.ClientSerializer(queryset, many=True)
+        serializer = ClientSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def get_paginated_response(self, data):
@@ -52,7 +58,7 @@ class ClientView(ListCreateAPIView):
 
 class ClientDetailView(RetrieveAPIView):
     permission_classes = [IsApiUser]
-    serializer_class = serializers.ClientDetailSerializer
+    serializer_class = ClientDetailSerializer
     queryset = Client.objects.all()
     lookup_field = ['telegram_id']
 
@@ -64,9 +70,21 @@ class ClientDetailView(RetrieveAPIView):
         return get_object_or_404(queryset=self.queryset, **client_filter)
 
 
+class ClientOrdersView(ListAPIView):
+    permission_classes = [IsApiUser]
+
+    def get(self, request, *args, **kwargs):
+        id = kwargs['id']
+        queryset = Order.objects.filter(client__id=id)
+        serializer = OrderSerializer(queryset, many=True)
+        # data = serializer.data
+        # print(connection.queries)
+        return Response(serializer.data)
+
+
 class VehicleView(APIView):
     permission_classes = [IsApiUser]
-    serializers_class = serializers.CreateVehicleSerializer
+    serializers_class = CreateVehicleSerializer
 
     def post(self, request):
         print(f"Vehicle register request: {request.data}")
@@ -79,7 +97,7 @@ class VehicleView(APIView):
 
 class OrderView(APIView):
     permission_classes = [IsApiUser]
-    serializer_class = serializers.OrderCreateSerializer
+    serializer_class = OrderCreateSerializer
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data, instance=None)

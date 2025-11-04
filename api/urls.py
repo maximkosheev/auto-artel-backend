@@ -14,6 +14,7 @@ urlpatterns = [
     path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     path('clients/', ClientView.as_view(), name='client'),
     path('clients/<int:telegram_id>/detail/', ClientDetailView.as_view(), name='client_detail'),
+    path('clients/<int:id>/orders/', ClientOrdersView.as_view(), name='client_orders'),
     path('vehicle/', VehicleView.as_view(), name='vehicle'),
     path('orders/', OrderView.as_view(), name='orders'),
 ]

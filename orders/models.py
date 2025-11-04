@@ -13,7 +13,7 @@ class Vehicle(models.Model):
     manufacture = models.CharField(help_text='Производитель')
     model = models.CharField(help_text='Модель')
     year = models.IntegerField(help_text='Год выпуска')
-    client = models.ForeignKey('Client', related_name='vehicleList', on_delete=models.RESTRICT)
+    client = models.ForeignKey('Client', related_name='vehicle_list', on_delete=models.RESTRICT)
 
 
 class Client(models.Model):
@@ -51,6 +51,7 @@ class Order(models.Model):
         ('COMPLETED', 'Завершен')
     ]
     CLIENT_STATUS_CHOICES = [
+        ('NOT_ASSIGNED', 'Новый'),
         ('ASSIGNED', 'Менеджер принял заказ в работу'),
         ('WAIT_APPROVAL', 'На согласовании с клиентом'),
         ('WAIT_PAYMENT', 'Ждет оплаты'),
@@ -62,9 +63,9 @@ class Order(models.Model):
     ]
     id = models.BigAutoField(primary_key=True)
     status = models.CharField(choices=STATUS_CHOICES, default='NEW')
-    client_status = models.CharField(null=True, choices=CLIENT_STATUS_CHOICES)
-    client = models.ForeignKey(Client, on_delete=models.CASCADE)
-    manager = models.ManyToManyField(Manager)
+    client_status = models.CharField(null=True, choices=CLIENT_STATUS_CHOICES, default='NOT_ASSIGNED')
+    client = models.ForeignKey(Client, on_delete=models.PROTECT)
+    manager = models.ForeignKey(Manager, null=True, on_delete=models.PROTECT)
     created = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(default=timezone.now)
     initial_requirements = models.TextField()
@@ -76,5 +77,5 @@ class OrderItem(models.Model):
     manufacture = models.CharField(null=True, help_text='Производитель')
     name = models.CharField(null=True, help_text='Наименование')
     price = models.DecimalField(null=True, max_digits=19, decimal_places=2, help_text='Стоимость')
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_item_list')
 

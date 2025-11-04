@@ -50,7 +50,8 @@ MIDDLEWARE = [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication'
-    ]
+    ],
+    'DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%SZ'
 }
 
 JWT_AUTH = {
