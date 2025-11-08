@@ -74,8 +74,8 @@ class ClientOrdersView(ListAPIView):
     permission_classes = [IsApiUser]
 
     def get(self, request, *args, **kwargs):
-        id = kwargs['id']
-        queryset = Order.objects.filter(client__id=id)
+        client_id = kwargs['client_id']
+        queryset = Order.objects.filter(client__id=client_id)
         serializer = OrderSerializer(queryset, many=True)
         # data = serializer.data
         # print(connection.queries)
