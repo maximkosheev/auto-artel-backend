@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.serializers.chat_message_serializers import CreateChatMessageSerializer
 from api.serializers.client_serializers import ClientRegisterSerializer, ClientDetailSerializer, ClientSerializer
 from api.serializers.order_serializers import OrderSerializer, OrderCreateSerializer
 from api.serializers.vehicle_serializers import CreateVehicleSerializer
@@ -101,6 +102,18 @@ class OrderView(APIView):
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data, instance=None)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return Response(serializer.validated_data, status.HTTP_201_CREATED)
+
+
+class ChatMessageView(APIView):
+    permission_classes = [IsApiUser]
+    chat_message_from_client_serializer = CreateChatMessageSerializer
+
+    def post(self, request):
+        serializer = self.chat_message_from_client_serializer(data=request.data, instance=None)
         if not serializer.is_valid():
             return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
         serializer.save()
