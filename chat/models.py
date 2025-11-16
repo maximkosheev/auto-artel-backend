@@ -1,0 +1,21 @@
+from django.contrib.postgres import fields
+from django.db import models
+from django.utils import timezone
+
+from orders.models import Client, Manager
+
+
+class ChatMessage(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    telegram_id = models.BigIntegerField(null=True, db_index=True)
+    reply_to_telegram_id = models.BigIntegerField(null=True)
+    client = models.ForeignKey(Client, on_delete=models.RESTRICT)
+    manager = models.ForeignKey(Manager, null=True, on_delete=models.RESTRICT)
+    created = models.DateTimeField(default=timezone.now)
+    text = models.TextField()
+    media = fields.ArrayField(
+        models.TextField(),
+        null=True,
+        size=10
+    )
+    viewed = models.BooleanField(default=False)

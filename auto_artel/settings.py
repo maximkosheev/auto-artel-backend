@@ -34,7 +34,8 @@ INSTALLED_APPS = [
     # AutoArtel apps
     'home',
     'api',
-    'orders'
+    'orders',
+    'chat'
 ]
 
 MIDDLEWARE = [

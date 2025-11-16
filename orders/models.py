@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.contrib.postgres import fields
 from django.db import models
 from django.utils import timezone
 
@@ -79,19 +78,3 @@ class OrderItem(models.Model):
     name = models.CharField(null=True, help_text='Наименование')
     price = models.DecimalField(null=True, max_digits=19, decimal_places=2, help_text='Стоимость')
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_item_list')
-
-
-class ChatMessage(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    telegram_id = models.BigIntegerField(null=True, db_index=True)
-    reply_to_telegram_id = models.BigIntegerField(null=True)
-    client = models.ForeignKey(Client, on_delete=models.RESTRICT)
-    manager = models.ForeignKey(Manager, null=True, on_delete=models.RESTRICT)
-    created = models.DateTimeField(default=timezone.now)
-    text = models.TextField()
-    media = fields.ArrayField(
-        models.TextField(),
-        null=True,
-        size=10
-    )
-    viewed = models.BooleanField(default=False)
