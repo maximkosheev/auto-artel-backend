@@ -5,23 +5,6 @@
 <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
 {% block extra_style %}
 <style>
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        height: 100vh;
-        overflow: hidden;
-    }
-
-    #app {
-        display: flex;
-        height: 100vh;
-    }
-
     /* Clients List */
     .clients-sidebar {
         width: 300px;
@@ -29,6 +12,7 @@
         display: flex;
         flex-direction: column;
         background: #f8f9fa;
+        height: calc(100vh - 75px)
     }
 
     .clients-header {
@@ -42,6 +26,7 @@
     .clients-list {
         flex: 1;
         overflow-y: auto;
+        min-height: 0;
     }
 
     .client-item {
@@ -86,7 +71,8 @@
     /* Chat Area */
     .chat-area {
         flex: 1;
-        display: flex;
+        /*display: flex;*/
+        display: none;
         flex-direction: column;
         background: #fff;
     }
@@ -191,6 +177,11 @@
         box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         z-index: 1000;
         min-width: 120px;
+        display: none;
+    }
+
+    .context-menu.show {
+        display: block;
     }
 
     .context-menu-item {
@@ -223,10 +214,14 @@
         padding: 10px;
         border-radius: 4px;
         margin-bottom: 10px;
-        display: flex;
+        display: none;
         justify-content: space-between;
         align-items: center;
         font-size: 14px;
+    }
+
+    .reply-indicator.show {
+        display: flex;
     }
 
     .reply-text {
@@ -252,10 +247,14 @@
         padding: 10px;
         border-radius: 4px;
         margin-bottom: 10px;
-        display: flex;
+        display: none;
         justify-content: space-between;
         align-items: center;
         font-size: 14px;
+    }
+
+    .edit-indicator.show {
+        display: flex;
     }
 
     .input-wrapper {
@@ -310,6 +309,10 @@
         0%, 100% { background: transparent; }
         50% { background: #ffeb3b; }
     }
+
+    .hidden {
+        display: none;
+    }
 </style>
 {% endblock extra_style %}
 
@@ -317,519 +320,466 @@
 {% endblock chat_extra_style %}
 
 {% block content %}
-<div id="app">
-    <!-- Clients Sidebar -->
-    <div class="clients-sidebar">
-        <div class="clients-header">Clients</div>
-        <div class="clients-list" id="clientsList">
-            <!-- Clients will be populated here -->
+<!-- Clients Sidebar -->
+<div class="clients-sidebar">
+    <div class="clients-header">Clients</div>
+    <div class="clients-list" id="clientsList">
+        {% for client in clients %}
+        <div class="client-item {% if client.unread_count > 0 %}has-unread{% endif %}"
+             onclick="selectClient({{ client.id }})">
+            <span class="client-name">{{client.name|escape}}</span>
+            {% if client.unread_count > 0 %}<span class="unread-badge">{{ client.unread_count }}</span>{% endif %}
         </div>
-    </div>
-
-    <!-- Chat Area -->
-    <div class="chat-area">
-        <div id="chatContent" class="hidden">
-            <div class="chat-header" id="chatHeader"></div>
-
-            <div class="chat-messages" id="messagesContainer">
-                <!-- Messages will be populated here -->
-            </div>
-
-            <div class="message-input-area">
-                <div class="reply-indicator" id="replyIndicator">
-                    <span class="reply-text" id="replyText"></span>
-                    <button class="cancel-reply" onclick="cancelReply()">Cancel</button>
-                </div>
-
-                <div class="edit-indicator" id="editIndicator">
-                    <span class="reply-text">Editing message</span>
-                    <button class="cancel-reply" onclick="cancelEdit()">Cancel</button>
-                </div>
-
-                <div class="input-wrapper">
-                    <textarea
-                        id="messageInput"
-                        class="message-input"
-                        placeholder="Type a message..."
-                        rows="3"
-                    ></textarea>
-                    <button class="send-button" id="sendButton" onclick="sendMessage()">
-                        Send
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div id="emptyState" class="empty-state">
-            Select a client to start chatting
-        </div>
-    </div>
-
-    <!-- Context Menu -->
-    <div id="contextMenu" class="context-menu">
-        <div class="context-menu-item" onclick="replyToMessage()">Reply</div>
-        <div class="context-menu-item" id="editMenuItem" onclick="editMessage()">Edit</div>
-        <div class="context-menu-item" id="deleteMenuItem" onclick="deleteMessage()">Delete</div>
+        {% endfor %}
     </div>
 </div>
 
-    <script>
-        // Global state
-        let clients = [];
-        let selectedClient = null;
-        let messages = [];
-        let ws = null;
-        let contextMenuMessage = null;
-        let replyingTo = null;
-        let editingMessage = null;
+<!-- Chat Area -->
+<div class="chat-area">
+    <div id="chatContent" class="hidden">
+        <div class="chat-header" id="chatHeader"></div>
 
-        // CSRF Token
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
+        <div class="chat-messages" id="messagesContainer">
+            <!-- Messages will be populated here -->
+        </div>
+
+        <div class="message-input-area">
+            <div class="reply-indicator" id="replyIndicator">
+                <span class="reply-text" id="replyText"></span>
+                <button class="cancel-reply" onclick="cancelReply()">Cancel</button>
+            </div>
+
+            <div class="edit-indicator" id="editIndicator">
+                <span class="reply-text">Editing message</span>
+                <button class="cancel-reply" onclick="cancelEdit()">Cancel</button>
+            </div>
+
+            <div class="input-wrapper">
+                    <textarea
+                            id="messageInput"
+                            class="message-input"
+                            placeholder="Type a message..."
+                            rows="3"
+                    ></textarea>
+                <button class="send-button" id="sendButton" onclick="sendMessage()">
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+        Select a client to start chatting
+    </div>
+</div>
+
+<!-- Context Menu -->
+<div id="contextMenu" class="context-menu">
+    <div class="context-menu-item" onclick="replyToMessage()">Reply</div>
+    <div class="context-menu-item" id="editMenuItem" onclick="editMessage()">Edit</div>
+    <div class="context-menu-item" id="deleteMenuItem" onclick="deleteMessage()">Delete</div>
+</div>
+
+<script>
+
+</script>
+
+{% block orders_extra_js %}
+{% endblock orders_extra_js %}
+
+{% endblock content %}
+
+<script>
+    // Global state
+    let clients = [];
+    let selectedClient = null;
+    let messages = [];
+    let ws = null;
+    let contextMenuMessage = null;
+    let replyingTo = null;
+    let editingMessage = null;
+
+    // CSRF Token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
                 }
             }
-            return cookieValue;
         }
-        const csrftoken = getCookie('csrftoken');
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            loadClients();
-            connectWebSocket();
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        loadClients();
+        connectWebSocket();
 
-            // Close context menu on click outside
-            document.addEventListener('click', function() {
-                document.getElementById('contextMenu').classList.remove('show');
-            });
-
-            // Handle Enter key in textarea
-            document.getElementById('messageInput').addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
+        // Close context menu on click outside
+        document.addEventListener('click', function() {
+            document.getElementById('contextMenu').classList.remove('show');
         });
 
-        // Load clients list
-        async function loadClients() {
-            try {
-                const response = await fetch('/chat/api/clients/');
-                const data = await response.json();
-                clients = data.clients;
-                renderClients();
-            } catch (error) {
-                console.error('Error loading clients:', error);
-            }
-        }
-
-        // Render clients list
-        function renderClients() {
-            // Sort clients: unread count (desc), then last message time (desc)
-            const sortedClients = [...clients].sort((a, b) => {
-                if (b.unread_count !== a.unread_count) {
-                    return b.unread_count - a.unread_count;
-                }
-                if (a.last_message_time && b.last_message_time) {
-                    return new Date(b.last_message_time) - new Date(a.last_message_time);
-                }
-                return 0;
-            });
-
-            const clientsList = document.getElementById('clientsList');
-            clientsList.innerHTML = '';
-
-            sortedClients.forEach(client => {
-                const clientItem = document.createElement('div');
-                clientItem.className = 'client-item';
-                if (client.unread_count > 0) {
-                    clientItem.classList.add('has-unread');
-                }
-                if (selectedClient && selectedClient.id === client.id) {
-                    clientItem.classList.add('active');
-                }
-
-                clientItem.innerHTML = `
-                    <span class="client-name">${escapeHtml(client.name)}</span>
-                    ${client.unread_count > 0 ? `<span class="unread-badge">${client.unread_count}</span>` : ''}
-                `;
-
-                clientItem.onclick = () => selectClient(client);
-                clientsList.appendChild(clientItem);
-            });
-        }
-
-        // Select a client
-        async function selectClient(client) {
-            selectedClient = client;
-            renderClients();
-            await loadMessages(client.id);
-
-            // Update unread count for this client
-            const clientInList = clients.find(c => c.id === client.id);
-            if (clientInList) {
-                clientInList.unread_count = 0;
-            }
-
-            // Show chat content, hide empty state
-            document.getElementById('chatContent').classList.remove('hidden');
-            document.getElementById('emptyState').classList.add('hidden');
-            document.getElementById('chatHeader').textContent = client.name;
-        }
-
-        // Load messages for selected client
-        async function loadMessages(clientId) {
-            try {
-                const response = await fetch(`/chat/api/messages/${clientId}/`);
-                const data = await response.json();
-                messages = data.messages;
-                renderMessages();
-                scrollToBottom();
-            } catch (error) {
-                console.error('Error loading messages:', error);
-            }
-        }
-
-        // Render messages
-        function renderMessages() {
-            const messagesContainer = document.getElementById('messagesContainer');
-            messagesContainer.innerHTML = '';
-
-            messages.forEach(message => {
-                const messageDiv = createMessageElement(message);
-                messagesContainer.appendChild(messageDiv);
-            });
-        }
-
-        // Create message element
-        function createMessageElement(message) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${message.is_manager ? 'manager-message' : 'client-message'}`;
-            messageDiv.dataset.messageId = message.id;
-            messageDiv.dataset.telegramId = message.telegram_id;
-
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-
-            // Reply quote
-            if (message.reply_to_text) {
-                const quoteDiv = document.createElement('div');
-                quoteDiv.className = 'message-reply-quote';
-                quoteDiv.textContent = truncateText(message.reply_to_text, 50);
-                quoteDiv.onclick = (e) => {
-                    e.stopPropagation();
-                    scrollToReplyMessage(message.reply_to_telegram_id);
-                };
-                contentDiv.appendChild(quoteDiv);
-            }
-
-            // Message text
-            const textDiv = document.createElement('div');
-            textDiv.className = 'message-text';
-            textDiv.textContent = message.text;
-            contentDiv.appendChild(textDiv);
-
-            // Media
-            if (message.media && message.media.length > 0) {
-                const mediaDiv = document.createElement('div');
-                mediaDiv.className = 'message-media';
-                message.media.forEach(mediaData => {
-                    const img = document.createElement('img');
-                    img.src = 'data:image/png;base64,' + mediaData;
-                    mediaDiv.appendChild(img);
-                });
-                contentDiv.appendChild(mediaDiv);
-            }
-
-            // Time
-            const timeDiv = document.createElement('div');
-            timeDiv.className = 'message-time';
-            timeDiv.textContent = formatTime(message.created);
-            contentDiv.appendChild(timeDiv);
-
-            messageDiv.appendChild(contentDiv);
-
-            // Context menu
-            messageDiv.addEventListener('contextmenu', (e) => {
+        // Handle Enter key in textarea
+        document.getElementById('messageInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                showContextMenu(e, message);
+                sendMessage();
+            }
+        });
+    });
+
+    // Load messages for selected client
+    async function loadMessages(clientId) {
+        try {
+            const response = await fetch(`/chat/api/messages/${clientId}/`);
+            const data = await response.json();
+            messages = data.messages;
+            renderMessages();
+            scrollToBottom();
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    }
+
+    // Render messages
+    function renderMessages() {
+        const messagesContainer = document.getElementById('messagesContainer');
+        messagesContainer.innerHTML = '';
+
+        messages.forEach(message => {
+            const messageDiv = createMessageElement(message);
+            messagesContainer.appendChild(messageDiv);
+        });
+    }
+
+    // Create message element
+    function createMessageElement(message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${message.is_manager ? 'manager-message' : 'client-message'}`;
+        messageDiv.dataset.messageId = message.id;
+        messageDiv.dataset.telegramId = message.telegram_id;
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+
+        // Reply quote
+        if (message.reply_to_text) {
+            const quoteDiv = document.createElement('div');
+            quoteDiv.className = 'message-reply-quote';
+            quoteDiv.textContent = truncateText(message.reply_to_text, 50);
+            quoteDiv.onclick = (e) => {
+                e.stopPropagation();
+                scrollToReplyMessage(message.reply_to_telegram_id);
+            };
+            contentDiv.appendChild(quoteDiv);
+        }
+
+        // Message text
+        const textDiv = document.createElement('div');
+        textDiv.className = 'message-text';
+        textDiv.textContent = message.text;
+        contentDiv.appendChild(textDiv);
+
+        // Media
+        if (message.media && message.media.length > 0) {
+            const mediaDiv = document.createElement('div');
+            mediaDiv.className = 'message-media';
+            message.media.forEach(mediaData => {
+                const img = document.createElement('img');
+                img.src = 'data:image/png;base64,' + mediaData;
+                mediaDiv.appendChild(img);
             });
-
-            return messageDiv;
+            contentDiv.appendChild(mediaDiv);
         }
 
-        // Connect WebSocket
-        function connectWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws/chat/`);
+        // Time
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        timeDiv.textContent = formatTime(message.created);
+        contentDiv.appendChild(timeDiv);
 
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
+        messageDiv.appendChild(contentDiv);
 
-                if (data.type === 'new_message') {
-                    handleNewMessage(data.message);
-                } else if (data.type === 'message_edited') {
-                    handleMessageEdited(data.message);
-                } else if (data.type === 'message_deleted') {
-                    handleMessageDeleted(data.message_id, data.client_id);
-                } else if (data.type === 'messages_read') {
-                    handleMessagesRead(data.client_id);
-                }
-            };
+        // Context menu
+        messageDiv.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showContextMenu(e, message);
+        });
 
-            ws.onclose = () => {
-                console.log('WebSocket disconnected. Reconnecting...');
-                setTimeout(() => connectWebSocket(), 3000);
-            };
-        }
+        return messageDiv;
+    }
 
-        // Handle new message
-        function handleNewMessage(message) {
-            // Update client list
-            const client = clients.find(c => c.id === message.client_id);
-            if (client) {
-                if (!message.is_manager && (!selectedClient || selectedClient.id !== message.client_id)) {
-                    client.unread_count++;
-                }
-                client.last_message_time = message.created;
-                renderClients();
+    // Connect WebSocket
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${protocol}//${window.location.host}/ws/chat/`);
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'new_message') {
+                handleNewMessage(data.message);
+            } else if (data.type === 'message_edited') {
+                handleMessageEdited(data.message);
+            } else if (data.type === 'message_deleted') {
+                handleMessageDeleted(data.message_id, data.client_id);
+            } else if (data.type === 'messages_read') {
+                handleMessagesRead(data.client_id);
             }
+        };
 
-            // Add message to chat if this client is selected
-            if (selectedClient && selectedClient.id === message.client_id) {
-                messages.push(message);
-                const messageElement = createMessageElement(message);
-                document.getElementById('messagesContainer').appendChild(messageElement);
-                scrollToBottom();
+        ws.onclose = () => {
+            console.log('WebSocket disconnected. Reconnecting...');
+            setTimeout(() => connectWebSocket(), 3000);
+        };
+    }
+
+    // Handle new message
+    function handleNewMessage(message) {
+        // Update client list
+        const client = clients.find(c => c.id === message.client_id);
+        if (client) {
+            if (!message.is_manager && (!selectedClient || selectedClient.id !== message.client_id)) {
+                client.unread_count++;
             }
+            client.last_message_time = message.created;
+            renderClients();
         }
 
-        // Handle message edited
-        function handleMessageEdited(message) {
-            if (selectedClient && selectedClient.id === message.client_id) {
-                const index = messages.findIndex(m => m.id === message.id);
-                if (index !== -1) {
-                    messages[index].text = message.text;
-                    renderMessages();
-                }
-            }
+        // Add message to chat if this client is selected
+        if (selectedClient && selectedClient.id === message.client_id) {
+            messages.push(message);
+            const messageElement = createMessageElement(message);
+            document.getElementById('messagesContainer').appendChild(messageElement);
+            scrollToBottom();
         }
+    }
 
-        // Handle message deleted
-        function handleMessageDeleted(messageId, clientId) {
-            if (selectedClient && selectedClient.id === clientId) {
-                const index = messages.findIndex(m => m.id === messageId);
-                if (index !== -1) {
-                    messages.splice(index, 1);
-                    renderMessages();
-                }
-            }
-        }
-
-        // Handle messages read
-        function handleMessagesRead(clientId) {
-            const client = clients.find(c => c.id === clientId);
-            if (client) {
-                client.unread_count = 0;
-                renderClients();
+    // Handle message edited
+    function handleMessageEdited(message) {
+        if (selectedClient && selectedClient.id === message.client_id) {
+            const index = messages.findIndex(m => m.id === message.id);
+            if (index !== -1) {
+                messages[index].text = message.text;
+                renderMessages();
             }
         }
-        // Send message
-        async function sendMessage() {
-            const messageInput = document.getElementById('messageInput');
-            const messageText = messageInput.value.trim();
+    }
 
-            if (!messageText || !selectedClient) return;
-
-            try {
-                if (editingMessage) {
-                    // Edit existing message
-                    const response = await fetch('/chat/api/edit/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken
-                        },
-                        body: JSON.stringify({
-                            message_id: editingMessage.id,
-                            text: messageText
-                        })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        messageInput.value = '';
-                        cancelEdit();
-                    }
-                } else {
-                    // Send new message
-                    const response = await fetch('/chat/api/send/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken
-                        },
-                        body: JSON.stringify({
-                            client_id: selectedClient.id,
-                            text: messageText,
-                            reply_to_telegram_id: replyingTo ? replyingTo.telegram_id : null
-                        })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        messageInput.value = '';
-                        cancelReply();
-                    }
-                }
-            } catch (error) {
-                console.error('Error sending message:', error);
+    // Handle message deleted
+    function handleMessageDeleted(messageId, clientId) {
+        if (selectedClient && selectedClient.id === clientId) {
+            const index = messages.findIndex(m => m.id === messageId);
+            if (index !== -1) {
+                messages.splice(index, 1);
+                renderMessages();
             }
         }
+    }
 
-        // Show context menu
-        function showContextMenu(event, message) {
-            event.preventDefault();
-            contextMenuMessage = message;
-
-            const contextMenu = document.getElementById('contextMenu');
-            const editMenuItem = document.getElementById('editMenuItem');
-            const deleteMenuItem = document.getElementById('deleteMenuItem');
-
-            // Show/hide edit and delete options for manager messages only
-            if (message.is_manager) {
-                editMenuItem.style.display = 'block';
-                deleteMenuItem.style.display = 'block';
-            } else {
-                editMenuItem.style.display = 'none';
-                deleteMenuItem.style.display = 'none';
-            }
-
-            contextMenu.style.left = event.clientX + 'px';
-            contextMenu.style.top = event.clientY + 'px';
-            contextMenu.classList.add('show');
+    // Handle messages read
+    function handleMessagesRead(clientId) {
+        const client = clients.find(c => c.id === clientId);
+        if (client) {
+            client.unread_count = 0;
+            renderClients();
         }
+    }
+    // Send message
+    async function sendMessage() {
+        const messageInput = document.getElementById('messageInput');
+        const messageText = messageInput.value.trim();
 
-        // Reply to message
-        function replyToMessage() {
-            replyingTo = contextMenuMessage;
-            document.getElementById('replyText').textContent = 'Replying to: ' + truncateText(contextMenuMessage.text, 50);
-            document.getElementById('replyIndicator').classList.add('show');
-            document.getElementById('messageInput').focus();
-            document.getElementById('contextMenu').classList.remove('show');
-        }
+        if (!messageText || !selectedClient) return;
 
-        // Edit message
-        function editMessage() {
-            editingMessage = contextMenuMessage;
-            document.getElementById('messageInput').value = contextMenuMessage.text;
-            document.getElementById('editIndicator').classList.add('show');
-            document.getElementById('sendButton').textContent = 'Save';
-            document.getElementById('messageInput').focus();
-            document.getElementById('contextMenu').classList.remove('show');
-        }
-
-        // Delete message
-        async function deleteMessage() {
-            if (!confirm('Are you sure you want to delete this message?')) {
-                return;
-            }
-
-            try {
-                const response = await fetch('/chat/api/delete/', {
+        try {
+            if (editingMessage) {
+                // Edit existing message
+                const response = await fetch('/chat/api/edit/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrftoken
                     },
                     body: JSON.stringify({
-                        message_id: contextMenuMessage.id
+                        message_id: editingMessage.id,
+                        text: messageText
                     })
                 });
 
                 const data = await response.json();
                 if (data.success) {
-                    // Message will be removed via WebSocket
+                    messageInput.value = '';
+                    cancelEdit();
                 }
-            } catch (error) {
-                console.error('Error deleting message:', error);
-            }
-
-            document.getElementById('contextMenu').classList.remove('show');
-        }
-
-        // Cancel reply
-        function cancelReply() {
-            replyingTo = null;
-            document.getElementById('replyIndicator').classList.remove('show');
-        }
-
-        // Cancel edit
-        function cancelEdit() {
-            editingMessage = null;
-            document.getElementById('messageInput').value = '';
-            document.getElementById('editIndicator').classList.remove('show');
-            document.getElementById('sendButton').textContent = 'Send';
-        }
-
-        // Scroll to bottom
-        function scrollToBottom() {
-            const container = document.getElementById('messagesContainer');
-            container.scrollTop = container.scrollHeight;
-        }
-
-        // Scroll to reply message
-        function scrollToReplyMessage(telegramId) {
-            const messageElement = document.querySelector(`[data-telegram-id="${telegramId}"]`);
-            if (messageElement) {
-                messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-                // Highlight the message temporarily
-                messageElement.classList.add('highlighted');
-                setTimeout(() => {
-                    messageElement.classList.remove('highlighted');
-                }, 1000);
-            }
-        }
-
-        // Format time
-        function formatTime(dateString) {
-            const date = new Date(dateString);
-            const now = new Date();
-            const isToday = date.toDateString() === now.toDateString();
-
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const timeStr = `${hours}:${minutes}`;
-
-            if (isToday) {
-                return timeStr;
             } else {
-                const month = date.toLocaleString('en-US', { month: 'short' });
-                const day = date.getDate();
-                return `${month} ${day} ${timeStr}`;
+                // Send new message
+                const response = await fetch('/chat/api/send/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        client_id: selectedClient.id,
+                        text: messageText,
+                        reply_to_telegram_id: replyingTo ? replyingTo.telegram_id : null
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    messageInput.value = '';
+                    cancelReply();
+                }
             }
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
+    }
+
+    // Show context menu
+    function showContextMenu(event, message) {
+        event.preventDefault();
+        contextMenuMessage = message;
+
+        const contextMenu = document.getElementById('contextMenu');
+        const editMenuItem = document.getElementById('editMenuItem');
+        const deleteMenuItem = document.getElementById('deleteMenuItem');
+
+        // Show/hide edit and delete options for manager messages only
+        if (message.is_manager) {
+            editMenuItem.style.display = 'block';
+            deleteMenuItem.style.display = 'block';
+        } else {
+            editMenuItem.style.display = 'none';
+            deleteMenuItem.style.display = 'none';
         }
 
-        // Truncate text
-        function truncateText(text, maxLength) {
-            if (!text) return '';
-            if (text.length <= maxLength) return text;
-            return text.substring(0, maxLength) + '...';
+        contextMenu.style.left = event.clientX + 'px';
+        contextMenu.style.top = event.clientY + 'px';
+        contextMenu.classList.add('show');
+    }
+
+    // Reply to message
+    function replyToMessage() {
+        replyingTo = contextMenuMessage;
+        document.getElementById('replyText').textContent = 'Replying to: ' + truncateText(contextMenuMessage.text, 50);
+        document.getElementById('replyIndicator').classList.add('show');
+        document.getElementById('messageInput').focus();
+        document.getElementById('contextMenu').classList.remove('show');
+    }
+
+    // Edit message
+    function editMessage() {
+        editingMessage = contextMenuMessage;
+        document.getElementById('messageInput').value = contextMenuMessage.text;
+        document.getElementById('editIndicator').classList.add('show');
+        document.getElementById('sendButton').textContent = 'Save';
+        document.getElementById('messageInput').focus();
+        document.getElementById('contextMenu').classList.remove('show');
+    }
+
+    // Delete message
+    async function deleteMessage() {
+        if (!confirm('Are you sure you want to delete this message?')) {
+            return;
         }
 
-        // Escape HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        try {
+            const response = await fetch('/chat/api/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    message_id: contextMenuMessage.id
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                // Message will be removed via WebSocket
+            }
+        } catch (error) {
+            console.error('Error deleting message:', error);
         }
-    </script>
+
+        document.getElementById('contextMenu').classList.remove('show');
+    }
+
+    // Cancel reply
+    function cancelReply() {
+        replyingTo = null;
+        document.getElementById('replyIndicator').classList.remove('show');
+    }
+
+    // Cancel edit
+    function cancelEdit() {
+        editingMessage = null;
+        document.getElementById('messageInput').value = '';
+        document.getElementById('editIndicator').classList.remove('show');
+        document.getElementById('sendButton').textContent = 'Send';
+    }
+
+    // Scroll to bottom
+    function scrollToBottom() {
+        const container = document.getElementById('messagesContainer');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // Scroll to reply message
+    function scrollToReplyMessage(telegramId) {
+        const messageElement = document.querySelector(`[data-telegram-id="${telegramId}"]`);
+        if (messageElement) {
+            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Highlight the message temporarily
+            messageElement.classList.add('highlighted');
+            setTimeout(() => {
+                messageElement.classList.remove('highlighted');
+            }, 1000);
+        }
+    }
+
+    // Format time
+    function formatTime(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const isToday = date.toDateString() === now.toDateString();
+
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const timeStr = `${hours}:${minutes}`;
+
+        if (isToday) {
+            return timeStr;
+        } else {
+            const month = date.toLocaleString('en-US', { month: 'short' });
+            const day = date.getDate();
+            return `${month} ${day} ${timeStr}`;
+        }
+    }
+
+    // Truncate text
+    function truncateText(text, maxLength) {
+        if (!text) return '';
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
