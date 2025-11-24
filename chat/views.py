@@ -29,9 +29,8 @@ class ChatListView(IsManagerMixin, generic.TemplateView):
             last_message_time=Max('chatmessage__created'))
                    .filter(where)
                    .order_by('-unread_count', '-last_message_time'))
-        fake_clients = [clients[0]] * 100
         return render(request, self.template_name, {
-            'clients': fake_clients
+            'clients': clients
         })
 
 
