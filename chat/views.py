@@ -3,6 +3,7 @@ from django.db.models import Count, Q, Max
 from django.shortcuts import render
 from django.views import generic
 
+from chat.models import ChatMessage
 from orders.models import Client
 
 
@@ -34,5 +35,20 @@ class ChatListView(IsManagerMixin, generic.TemplateView):
         })
 
 
-class ChatWithClient(IsManagerMixin, generic.DetailView):
-    pass
+class ChatWithClient(IsManagerMixin, generic.TemplateView):
+    template_name = 'chat/chat_with_client.html'
+
+    def get_context_data(self, **kwargs):
+        client = Client.objects.get(pk=kwargs.get('client_id'))
+        clients = (Client.objects.annotate(
+            unread_count=Count(
+                'chatmessage',
+                filter=Q(chatmessage__manager_id__isnull=True, chatmessage__viewed=False)),
+            last_message_time=Max('chatmessage__created'))
+                   .order_by('-unread_count', '-last_message_time'))
+        messages = ChatMessage.objects.filter(client=client).order_by('created')
+        return {
+            'clients': clients,
+            'selected_client': client,
+            'messages': messages
+        }
