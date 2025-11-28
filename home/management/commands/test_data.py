@@ -53,7 +53,7 @@ class Command(BaseCommand):
 
     def _create_test_user(self, user_name, group):
         password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
-        user = User.objects.create_user(username=uuid.uuid4(), password=password, email=f"{user_name}@auto-artel.com")
+        user = User.objects.create_user(username=user_name, password=password, email=f"{user_name}@auto-artel.com")
         user.groups.add(group)
         user.save()
         return user
