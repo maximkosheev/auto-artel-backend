@@ -1,7 +1,6 @@
-import string
-import uuid
-import secrets
 import random
+import secrets
+import string
 
 from django.contrib.auth.models import User, Group
 from django.core.management import BaseCommand
