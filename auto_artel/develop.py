@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 from .settings import *
@@ -45,4 +46,11 @@ LOGGING = {
             'propagate': False
         }
     },
+}
+
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
 }

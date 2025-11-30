@@ -22,6 +22,7 @@ CONTENT_DIR = BASE_DIR / "content"
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -32,6 +33,7 @@ INSTALLED_APPS = [
     "bootstrap4",
     "rest_framework_simplejwt",
     # AutoArtel apps
+    'channels',
     'home',
     'api',
     'orders',
@@ -80,6 +82,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'auto_artel.wsgi.application'
+ASGI_APPLICATION = 'auto_artel.asgi.application'
 
 
 DATABASES = {
