@@ -8,7 +8,7 @@ from orders.models import Client, Manager
 class ChatMessage(models.Model):
     id = models.BigAutoField(primary_key=True)
     telegram_id = models.BigIntegerField(null=True, db_index=True)
-    reply_to_id = models.ForeignKey('self', null=True, related_name="+",  on_delete=models.RESTRICT)
+    reply_to = models.ForeignKey('self', null=True, related_name="+",  on_delete=models.RESTRICT)
     client = models.ForeignKey(Client, on_delete=models.RESTRICT)
     manager = models.ForeignKey(Manager, null=True, on_delete=models.RESTRICT)
     created = models.DateTimeField(default=timezone.now)

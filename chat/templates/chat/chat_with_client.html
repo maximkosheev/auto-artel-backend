@@ -282,28 +282,18 @@
 
 {% block chat_extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        mark_all_as_read();
-    });
-
     document.addEventListener('click', function() {
         document.getElementById('contextMenu').classList.remove('show');
     });
 
-    async function mark_all_as_read() {
-        try {
-            const response = await fetch('/chat/mark-all-read', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken
-                },
-                body: JSON.stringify({
-                    client_id: {{ selected_client.id }}
-                })
-            })
-        } catch (error) {
-            console.error('Error mark all read:',  error);
+    function sendMessage() {
+        if (ws && ws.readyState == WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                "action":"send_message",
+                "client_id": {{ selected_client.id}},
+                "text": "Test message",
+                "reply_to": 4
+            }));
         }
     }
 

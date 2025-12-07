@@ -124,7 +124,7 @@
         <div class="clients-header">Clients</div>
         <div class="clients-list" id="clientsList">
             {% for client in clients %}
-            <a href="{% url 'chat:chat_with_client' client.id %}">
+            <a href="#" onclick="selectClient(event, '{% url 'chat:chat_with_client' client.id %}')">
                 <div class="client-item {% if client.unread_count > 0 %}has-unread{% endif %} {% if selected_client and client.id == selected_client.id %}active{% endif %}">
                     <span class="client-name">{{client.name|escape}}</span>
                     {% if client.unread_count > 0 %}<span class="unread-badge">{{ client.unread_count }}</span>{% endif %}
@@ -145,22 +145,67 @@
 </div>
 
 <script>
-// CSRF Token
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+    let ws = null
+
+    // CSRF Token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
         }
+        return cookieValue;
     }
-    return cookieValue;
-}
-const csrftoken = getCookie('csrftoken');
+
+    const csrftoken = getCookie('csrftoken');
+
+    document.addEventListener('DOMContentLoaded', function() {
+        connectWebSocket();
+    });
+
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        ws = new WebSocket(`${protocol}//${window.location.host}/ws/chat/`)
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            console.log("message from server: " + event.data);
+            //TODO: handle message from server
+        }
+        ws.onopen = () => {
+            {% if selected_client %}
+                mark_read({{ selected_client.id }});
+            {% endif %}
+        }
+        ws.onerror = (event) => {
+            console.log('WebSocket error: ' + event);
+        }
+        ws.onclose = (event) => {
+            console.log('WebSocket disconnected. Reconnecting...');
+            console.log(event)
+            setTimeout(() => connectWebSocket(), 3000);
+        }
+    }
+
+    function selectClient(e, chatWithClientUrl) {
+        e.preventDefault();
+        window.location.href = chatWithClientUrl;
+    }
+
+    function mark_read(client_id) {
+        if (ws && ws.readyState == WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                action: 'mark_read',
+                client_id: client_id
+            }));
+        }
+    }
 </script>
 
 {% block chat_extra_js %}
@@ -169,130 +214,6 @@ const csrftoken = getCookie('csrftoken');
 {% endblock content %}
 
 <script>
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
-        loadClients();
-        connectWebSocket();
-
-        // Close context menu on click outside
-        document.addEventListener('click', function() {
-            document.getElementById('contextMenu').classList.remove('show');
-        });
-
-        // Handle Enter key in textarea
-        document.getElementById('messageInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-    });
-
-    // Load messages for selected client
-    async function loadMessages(clientId) {
-        try {
-            const response = await fetch(`/chat/api/messages/${clientId}/`);
-            const data = await response.json();
-            messages = data.messages;
-            renderMessages();
-            scrollToBottom();
-        } catch (error) {
-            console.error('Error loading messages:', error);
-        }
-    }
-
-    // Render messages
-    function renderMessages() {
-        const messagesContainer = document.getElementById('messagesContainer');
-        messagesContainer.innerHTML = '';
-
-        messages.forEach(message => {
-            const messageDiv = createMessageElement(message);
-            messagesContainer.appendChild(messageDiv);
-        });
-    }
-
-    // Create message element
-    function createMessageElement(message) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${message.is_manager ? 'manager-message' : 'client-message'}`;
-        messageDiv.dataset.messageId = message.id;
-        messageDiv.dataset.telegramId = message.telegram_id;
-
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content';
-
-        // Reply quote
-        if (message.reply_to_text) {
-            const quoteDiv = document.createElement('div');
-            quoteDiv.className = 'message-reply-quote';
-            quoteDiv.textContent = truncateText(message.reply_to_text, 50);
-            quoteDiv.onclick = (e) => {
-                e.stopPropagation();
-                scrollToReplyMessage(message.reply_to_telegram_id);
-            };
-            contentDiv.appendChild(quoteDiv);
-        }
-
-        // Message text
-        const textDiv = document.createElement('div');
-        textDiv.className = 'message-text';
-        textDiv.textContent = message.text;
-        contentDiv.appendChild(textDiv);
-
-        // Media
-        if (message.media && message.media.length > 0) {
-            const mediaDiv = document.createElement('div');
-            mediaDiv.className = 'message-media';
-            message.media.forEach(mediaData => {
-                const img = document.createElement('img');
-                img.src = 'data:image/png;base64,' + mediaData;
-                mediaDiv.appendChild(img);
-            });
-            contentDiv.appendChild(mediaDiv);
-        }
-
-        // Time
-        const timeDiv = document.createElement('div');
-        timeDiv.className = 'message-time';
-        timeDiv.textContent = formatTime(message.created);
-        contentDiv.appendChild(timeDiv);
-
-        messageDiv.appendChild(contentDiv);
-
-        // Context menu
-        messageDiv.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            showContextMenu(e, message);
-        });
-
-        return messageDiv;
-    }
-
-    // Connect WebSocket
-    function connectWebSocket() {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        ws = new WebSocket(`${protocol}//${window.location.host}/ws/chat/`);
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-
-            if (data.type === 'new_message') {
-                handleNewMessage(data.message);
-            } else if (data.type === 'message_edited') {
-                handleMessageEdited(data.message);
-            } else if (data.type === 'message_deleted') {
-                handleMessageDeleted(data.message_id, data.client_id);
-            } else if (data.type === 'messages_read') {
-                handleMessagesRead(data.client_id);
-            }
-        };
-
-        ws.onclose = () => {
-            console.log('WebSocket disconnected. Reconnecting...');
-            setTimeout(() => connectWebSocket(), 3000);
-        };
-    }
 
     // Handle new message
     function handleNewMessage(message) {
