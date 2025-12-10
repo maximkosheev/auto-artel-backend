@@ -228,22 +228,7 @@
     <div class="chat-header" id="chatHeader">{{ selected_client.name }}</div>
 
     <div class="chat-messages" id="messagesContainer">
-        {% autoescape on %}
-        {% for message in messages %}
-        <div class="message {% if message.manager %}manager-message{% else %}client-message{% endif %}" data-message-id="{{ message.id }}"
-             onclick="event.preventDefault();showContextMenu(event, {% if message.manager %} true {% else %} false {% endif %})">
-            <div class="message-content">
-                {% if message.reply_to_text %}
-                <div class="message-reply-quote" onclick="scrollToMessage(message.reply_to_id)">
-                    {{ message.reply_to_text|truncatechars:50 }}
-                </div>
-                {% endif %}
-                <div class="message-text">{{ message.text }}</div>
-                <div class="message-time">{{ message.created|date:"d.m.Y" }} {{ message.created|time:"H:i"}}</div>
-            </div>
-        </div>
-        {% endfor %}
-        {% endautoescape %}
+        <!-- Здесь будут отображаться сообщение. Элементы для каждого сообщения создаются через createMessageElement() -->
     </div>
 
     <div class="message-input-area">
@@ -282,24 +267,110 @@
 
 {% block chat_extra_js %}
 <script>
+    let selected_client_id = {{ selected_client.id }};
+    let editingMessage = null;
+    let replyTo = null;
+
     document.addEventListener('click', function() {
+        console.log("Hiding context menu")
         document.getElementById('contextMenu').classList.remove('show');
     });
 
+    messagesContainer = document.getElementById('messagesContainer');
+
+    {% for message in messages %}
+    messagesContainer.appendChild(createMessageElement(
+        {
+            id: {{ message.id }},
+            is_manager: {% if message.manager is not None %} true {% else %} false {% endif %},
+            reply_to_id: '{{ message.reply_to_id }}',
+            reply_to_text: '{{ message.reply_to_text }}',
+            text: '{{ message.text }}',
+            created: '{{ message.created|date:"d.m.Y" }} {{ message.created|time:"H:i"}}'
+        }
+    ));
+    {% endfor %}
+
+    function createMessageElement(message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${message.is_manager ? 'manager-message' : 'client-message'}`;
+        messageDiv.dataset.messageId = message.id;
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+
+        if (message.reply_to_text) {
+            const quoteDiv = document.createElement('div');
+            quoteDiv.className = 'message-reply-quote';
+            quoteDiv.textContent = message.reply_to_text;
+            quoteDiv.onclick = (e) => {
+                e.stopPropagation();
+                scrollToMessage(message.reply_to_id);
+            }
+            contentDiv.appendChild(quoteDiv);
+        }
+
+        const textDiv = document.createElement('div');
+        textDiv.className = 'message-text';
+        textDiv.textContent = message.text;
+        contentDiv.appendChild(textDiv);
+
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        timeDiv.textContent = message.created;
+        contentDiv.appendChild(timeDiv);
+
+        messageDiv.appendChild(contentDiv);
+
+        messageDiv.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showContextMenu(e, message);
+        });
+
+        return messageDiv;
+    }
+
     function sendMessage() {
-        if (ws && ws.readyState == WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                "action":"send_message",
-                "client_id": {{ selected_client.id}},
-                "text": "Test message",
-                "reply_to": 4
-            }));
+        const messageInput = document.getElementById("messageInput");
+        const messageText = messageInput.value.trim();
+
+        if (!messageText) {
+            return;
+        }
+
+        if (editingMessage) {
+        } else {
+            send_status = sendToWS({
+                action: 'send_message',
+                client_id: selected_client_id,
+                text: messageText,
+                reply_to_id: replyTo ? replyTo.id : null
+            })
+            if (send_status) {
+                cancelReply();
+            }
         }
     }
 
-    function showContextMenu(event, isManager) {
-        event.preventDefault();
+    function handleNewMessage(message) {
+        if (selected_client_id == message.client_id) {
+            const messageElement = createMessageElement(message);
+            messagesContainer.appendChild(messageElement);
+            scrollToBottom();
+        }
+    }
 
+    function cancelReply() {
+    }
+
+    function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function showContextMenu(event, isManager) {
+        event.stopPropagation();
+
+        console.log("Showing context menu");
         const contextMenu = document.getElementById('contextMenu');
         const editMenuItem = document.getElementById('editMenuItem');
         const deleteMenuItem = document.getElementById('deleteMenuItem');

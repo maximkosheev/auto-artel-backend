@@ -7,6 +7,8 @@ from chat.models import ChatMessage
 from orders.models import Client, Manager
 
 from datetime import datetime, UTC
+from django.views.decorators.csrf import csrf_exempt
+
 
 class ChatConsumer(AsyncWebsocketConsumer):
 
@@ -31,16 +33,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 self.channel_name
             )
 
+    @csrf_exempt
     async def receive(self, text_data=None, bytes_data=None):
         data = json.loads(text_data)
-        print(f"received data: {data}")
 
         action = data.get('action')
-
         if action == 'mark_read':
             await self.mark_messages_read(data['client_id'])
         elif action == 'send_message':
-            await self.send_message(data)
+            message = await self.send_message(data)
+            await self.new_message({
+                'message': message
+            })
 
     @database_sync_to_async
     def mark_messages_read(self, client_id):
@@ -50,7 +54,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ).update(viewed=True)
 
     @database_sync_to_async
-    def send_message(self, data):
+    def send_message(self, data) -> ChatMessage:
         client = Client.objects.get(pk=data['client_id'])
         manager = Manager.objects.get(user=self.scope['user'])
 
@@ -62,3 +66,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
             viewed=True,
             created=datetime.now(UTC)
         )
+        return message
+
+    async def new_message(self, event):
+        message = event['message']
+        await self.send(text_data=json.dumps({
+            'type': 'new_message',
+            'message': {
+                'id': message.id,
+                'client_id': message.client.id,
+                'is_manager': message.manager is not None,
+                'text': message.text,
+                'reply_to_id': message.reply_to_id,
+                'reply_to_text': 'Цитата заглушка',
+                'created': 'Just now'
+            }
+        }))

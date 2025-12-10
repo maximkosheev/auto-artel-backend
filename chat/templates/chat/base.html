@@ -176,7 +176,9 @@
             const data = JSON.parse(event.data);
 
             console.log("message from server: " + event.data);
-            //TODO: handle message from server
+            if (data.type === 'new_message') {
+                handleNewMessage(data.message)
+            }
         }
         ws.onopen = () => {
             {% if selected_client %}
@@ -199,12 +201,22 @@
     }
 
     function mark_read(client_id) {
-        if (ws && ws.readyState == WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                action: 'mark_read',
-                client_id: client_id
-            }));
+        sendToWS({
+            action: 'mark_read',
+            client_id: client_id
+        });
+    }
+
+    function sendToWS(message) {
+        try {
+            if (ws && ws.readyState == WebSocket.OPEN) {
+                ws.send(JSON.stringify(message));
+                return true;
+            }
+        } catch (error) {
+            console.error("Error sending message: ", error);
         }
+        return false;
     }
 </script>
 
