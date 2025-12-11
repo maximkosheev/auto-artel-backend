@@ -343,7 +343,7 @@
             }
             const orderId = this.dataset.orderId;
             if (orderId) {
-                window.open(`/orders/detail/${orderId}/`, '_blank');
+                window.open(`/orders/${orderId}/`, '_blank');
                 closeNotification();
             }
         });
@@ -368,7 +368,7 @@
         }
 
         function openOrderDetail(orderId) {
-            window.open(`/orders/detail/${orderId}/`, '_blank');
+            window.open(`/orders/${orderId}/`, '_blank');
             hideContextMenu();
         }
 

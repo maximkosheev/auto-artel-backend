@@ -271,12 +271,21 @@
     let editingMessage = null;
     let replyTo = null;
 
-    document.addEventListener('click', function() {
-        console.log("Hiding context menu")
-        document.getElementById('contextMenu').classList.remove('show');
+    const messagesContainer = document.getElementById('messagesContainer');
+
+    document.addEventListener('DOMContentLoaded', function() {
+        mark_read(selected_client_id);
+        document.getElementById('messageInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
     });
 
-    messagesContainer = document.getElementById('messagesContainer');
+    document.addEventListener('click', function() {
+        document.getElementById('contextMenu').classList.remove('show');
+    });
 
     {% for message in messages %}
     messagesContainer.appendChild(createMessageElement(
@@ -348,6 +357,7 @@
             })
             if (send_status) {
                 cancelReply();
+                messageInput.value = '';
             }
         }
     }

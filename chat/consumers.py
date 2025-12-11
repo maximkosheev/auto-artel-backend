@@ -12,6 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 class ChatConsumer(AsyncWebsocketConsumer):
 
+    @csrf_exempt
     async def connect(self):
         if self.scope["user"].is_anonymous:
             await self.close(code=401, reason="Anonymous connection are not allowed")
@@ -33,7 +34,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 self.channel_name
             )
 
-    @csrf_exempt
     async def receive(self, text_data=None, bytes_data=None):
         data = json.loads(text_data)
 
@@ -62,7 +62,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             client=client,
             manager=manager,
             text=data['text'],
-            reply_to_id=data.get('reply_to'),
+            reply_to_id=data.get('reply_to_id'),
             viewed=True,
             created=datetime.now(UTC)
         )
@@ -77,8 +77,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'client_id': message.client.id,
                 'is_manager': message.manager is not None,
                 'text': message.text,
-                'reply_to_id': message.reply_to_id,
-                'reply_to_text': 'Цитата заглушка',
-                'created': 'Just now'
+                'reply_to_id': message.reply_to.id if message.reply_to is not None else None,
+                'reply_to_text': message.reply_to.text if message.reply_to is not None else None,
+                'created': message.created.strftime("%d.%m.%Y %H:%M")
             }
         }))

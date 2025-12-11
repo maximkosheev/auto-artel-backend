@@ -181,16 +181,13 @@
             }
         }
         ws.onopen = () => {
-            {% if selected_client %}
-                mark_read({{ selected_client.id }});
-            {% endif %}
+            console.log('WebSocket opened');
         }
         ws.onerror = (event) => {
             console.log('WebSocket error: ' + event);
         }
         ws.onclose = (event) => {
             console.log('WebSocket disconnected. Reconnecting...');
-            console.log(event)
             setTimeout(() => connectWebSocket(), 3000);
         }
     }
@@ -215,8 +212,8 @@
             }
         } catch (error) {
             console.error("Error sending message: ", error);
+            return false;
         }
-        return false;
     }
 </script>
 
