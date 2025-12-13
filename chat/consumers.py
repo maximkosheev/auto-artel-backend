@@ -1,13 +1,15 @@
 import json
+import logging
+from datetime import datetime, UTC
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.views.decorators.csrf import csrf_exempt
 
 from chat.models import ChatMessage
 from orders.models import Client, Manager
 
-from datetime import datetime, UTC
-from django.views.decorators.csrf import csrf_exempt
+logger = logging.getLogger(__name__)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -57,12 +59,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def send_message(self, data) -> ChatMessage:
         client = Client.objects.get(pk=data['client_id'])
         manager = Manager.objects.get(user=self.scope['user'])
+        reply_to = self._get_reply_to(data.get('reply_to_id'))
 
         message = ChatMessage.objects.create(
             client=client,
             manager=manager,
             text=data['text'],
-            reply_to_id=data.get('reply_to_id'),
+            reply_to=reply_to,
             viewed=True,
             created=datetime.now(UTC)
         )
@@ -77,8 +80,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'client_id': message.client.id,
                 'is_manager': message.manager is not None,
                 'text': message.text,
-                'reply_to_id': message.reply_to.id if message.reply_to is not None else None,
-                'reply_to_text': message.reply_to.text if message.reply_to is not None else None,
+                'reply_to_id': message.reply_to.id if message.reply_to else None,
+                'reply_to_text': message.reply_to.text if message.reply_to else None,
                 'created': message.created.strftime("%d.%m.%Y %H:%M")
             }
         }))
+
+    def _get_reply_to(self, reply_to_id) -> ChatMessage | None:
+        if reply_to_id:
+            try:
+                return ChatMessage.objects.get(pk=reply_to_id)
+            except ChatMessage.DoesNotExist:
+                logger.error(f"Chat message with id {reply_to_id} not found")
+                return None
+        else:
+            return None

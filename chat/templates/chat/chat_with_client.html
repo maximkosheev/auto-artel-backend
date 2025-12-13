@@ -258,7 +258,7 @@
 
 <!-- Context Menu -->
 <div id="contextMenu" class="context-menu">
-    <div class="context-menu-item" onclick="replyToMessage()">Reply</div>
+    <div class="context-menu-item" onclick="replayMessage()">Reply</div>
     <div class="context-menu-item" id="editMenuItem" onclick="editMessage()">Edit</div>
     <div class="context-menu-item" id="deleteMenuItem" onclick="deleteMessage()">Delete</div>
 </div>
@@ -268,8 +268,9 @@
 {% block chat_extra_js %}
 <script>
     let selected_client_id = {{ selected_client.id }};
+    let contextMenuMessage = null;
     let editingMessage = null;
-    let replyTo = null;
+    let replyToMessage = null;
 
     const messagesContainer = document.getElementById('messagesContainer');
 
@@ -285,6 +286,7 @@
 
     document.addEventListener('click', function() {
         document.getElementById('contextMenu').classList.remove('show');
+        contextMenuMessage = null;
     });
 
     {% for message in messages %}
@@ -353,7 +355,7 @@
                 action: 'send_message',
                 client_id: selected_client_id,
                 text: messageText,
-                reply_to_id: replyTo ? replyTo.id : null
+                reply_to_id: replyToMessage ? replyToMessage.id : null
             })
             if (send_status) {
                 cancelReply();
@@ -362,7 +364,23 @@
         }
     }
 
+    function replayMessage() {
+        if (!contextMenuMessage) return;
+        replyToMessage = contextMenuMessage;
+        document.getElementById('replyText').textContent = 'В ответ на: ' + truncateText(replyToMessage.text, 50);
+        document.getElementById('replyIndicator').classList.add('show');
+        document.getElementById('messageInput').focus();
+        document.getElementById('contextMenu').classList.remove('show');
+    }
+
+    function editMessage() {
+    }
+
+    function deleteMessage() {
+    }
+
     function handleNewMessage(message) {
+        console.log("New message: ", message);
         if (selected_client_id == message.client_id) {
             const messageElement = createMessageElement(message);
             messagesContainer.appendChild(messageElement);
@@ -371,22 +389,42 @@
     }
 
     function cancelReply() {
+        replyToMessage = null;
+        document.getElementById('replyIndicator').classList.remove('show');
+    }
+
+    function cancelEdit() {
+        editingMessage = null;
+        document.getElementById('messageInput').value = '';
+        document.getElementById('editIndicator').classList.remove('show');
+        document.getElementById('sendButton').textContent = 'Send';
+    }
+
+    function scrollToMessage(messageId) {
+        messageElement = document.querySelector(`[data-messageId="${messageId}"]`);
+        if (messageElement) {
+            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            messageElement.classList.add('highlighted');
+            setTimeout(() => {
+                messageElement.classList.remove('highlighted');
+            }, 1000);
+        }
     }
 
     function scrollToBottom() {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    function showContextMenu(event, isManager) {
+    function showContextMenu(event, message) {
         event.stopPropagation();
+        contextMenuMessage = message;
 
-        console.log("Showing context menu");
         const contextMenu = document.getElementById('contextMenu');
         const editMenuItem = document.getElementById('editMenuItem');
         const deleteMenuItem = document.getElementById('deleteMenuItem');
 
         // Show/hide edit and delete options for manager messages only
-        if (isManager) {
+        if (message.is_manager) {
             editMenuItem.style.display = 'block';
             deleteMenuItem.style.display = 'block';
         } else {
@@ -398,5 +436,12 @@
         contextMenu.style.top = event.clientY + 'px';
         contextMenu.classList.add('show');
     }
+
+    function truncateText(text, maxLen) {
+        if (!text) return '';
+        if (text.length < maxLen) return text;
+        return text.substring(0, maxLen) + '...';
+    }
+
 </script>
 {% endblock chat_extra_js %}

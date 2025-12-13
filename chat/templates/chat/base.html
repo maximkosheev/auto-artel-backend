@@ -207,6 +207,7 @@
     function sendToWS(message) {
         try {
             if (ws && ws.readyState == WebSocket.OPEN) {
+                //console.log("Sending message: ", JSON.stringify(message))
                 ws.send(JSON.stringify(message));
                 return true;
             }
