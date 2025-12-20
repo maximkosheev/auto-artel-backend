@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from chat.models import ChatMessage
 from orders.models import Client, Manager
+from auto_artel.broker import broker
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +70,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
             viewed=True,
             created=datetime.now(UTC)
         )
+        broker.send_chat_message({
+            'id': message.id,
+            'to': client.id,
+            'to_telegram_id': client.telegram_id,
+            'from': manager.name,
+            'text': data['text'],
+            'reply_to_telegram_id': reply_to.telegram_id if reply_to is not None else None
+        })
         return message
 
     async def new_message(self, event):
         message = event['message']
+        if message.reply_to:
+            reply_to = {
+                'id': message.reply_to.id,
+                'text': message.reply_to.text
+            }
+        else:
+            reply_to = None
+
         await self.send(text_data=json.dumps({
             'type': 'new_message',
             'message': {
@@ -80,8 +97,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'client_id': message.client.id,
                 'is_manager': message.manager is not None,
                 'text': message.text,
-                'reply_to_id': message.reply_to.id if message.reply_to else None,
-                'reply_to_text': message.reply_to.text if message.reply_to else None,
+                'reply_to': reply_to,
                 'created': message.created.strftime("%d.%m.%Y %H:%M")
             }
         }))

@@ -1,14 +1,8 @@
-import os
-
-from dotenv import load_dotenv
-
 from .settings import *
 
 DEBUG = True
 
 SECRET_KEY = 'django-insecure-b5#8^@!2e_(vspz)nv&0ksnh6g&sou$=6+rl*vu*iv#dq8_0at'
-
-load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
@@ -48,9 +42,10 @@ LOGGING = {
     },
 }
 
-
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer"
     }
 }
+
+stub()

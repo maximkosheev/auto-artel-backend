@@ -36,3 +36,9 @@ class CreateChatMessageSerializer(serializers.Serializer):
             media=message_date['media']
         )
         return new_chat_message
+
+
+class PatchChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatMessage
+        fields = ['telegram_id']

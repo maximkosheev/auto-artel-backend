@@ -10,7 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import datetime
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,6 +21,8 @@ CONTENT_DIR = BASE_DIR / "content"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # Application definition
 
@@ -84,7 +89,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'auto_artel.wsgi.application'
 ASGI_APPLICATION = 'auto_artel.asgi.application'
 
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -93,6 +97,10 @@ DATABASES = {
             "passfile": ".pgpass",
         },
     }
+}
+
+BROKER = {
+    'URI': os.getenv('RABBITMQ_URI')
 }
 
 # Password validation
@@ -113,7 +121,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -124,7 +131,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
@@ -148,3 +154,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
+
+
+def stub():
+    pass

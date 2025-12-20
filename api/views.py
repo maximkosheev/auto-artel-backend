@@ -8,11 +8,13 @@ from rest_framework.generics import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import generics
 
-from api.serializers.chat_message_serializers import CreateChatMessageSerializer
+from api.serializers.chat_message_serializers import CreateChatMessageSerializer, PatchChatMessageSerializer
 from api.serializers.client_serializers import ClientRegisterSerializer, ClientDetailSerializer, ClientSerializer
 from api.serializers.order_serializers import OrderSerializer, OrderCreateSerializer
 from api.serializers.vehicle_serializers import CreateVehicleSerializer
+from chat.models import ChatMessage
 from orders.models import Client, Order
 from django.db import connection
 
@@ -108,7 +110,7 @@ class OrderView(APIView):
         return Response(serializer.validated_data, status.HTTP_201_CREATED)
 
 
-class ChatMessageView(APIView):
+class ChatView(APIView):
     permission_classes = [IsApiUser]
     chat_message_from_client_serializer = CreateChatMessageSerializer
 
@@ -118,3 +120,17 @@ class ChatMessageView(APIView):
             return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
         serializer.save()
         return Response(serializer.validated_data, status.HTTP_201_CREATED)
+
+
+class ChatMessageView(generics.UpdateAPIView):
+    permission_classes = [IsApiUser]
+    queryset = ChatMessage.objects.all()
+    lookup_field = 'pk'
+    serializer_class = PatchChatMessageSerializer
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)

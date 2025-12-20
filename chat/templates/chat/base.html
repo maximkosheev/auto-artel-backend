@@ -146,6 +146,7 @@
 
 <script>
     let ws = null
+    let web_socket_queue = []
 
     // CSRF Token
     function getCookie(name) {
@@ -181,7 +182,9 @@
             }
         }
         ws.onopen = () => {
-            console.log('WebSocket opened');
+            while (typeof (item = web_socket_queue.shift()) !== "undefined") {
+                ws.send(item);
+            }
         }
         ws.onerror = (event) => {
             console.log('WebSocket error: ' + event);
@@ -206,11 +209,13 @@
 
     function sendToWS(message) {
         try {
+            stringified = JSON.stringify(message);
             if (ws && ws.readyState == WebSocket.OPEN) {
-                //console.log("Sending message: ", JSON.stringify(message))
-                ws.send(JSON.stringify(message));
-                return true;
+                ws.send(stringified);
+            } else {
+                web_socket_queue.push(stringified)
             }
+            return true;
         } catch (error) {
             console.error("Error sending message: ", error);
             return false;

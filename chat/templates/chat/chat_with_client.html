@@ -306,13 +306,20 @@
         {
             id: {{ message.id }},
             is_manager: {% if message.manager is not None %} true {% else %} false {% endif %},
-            reply_to_id: '{{ message.reply_to_id }}',
-            reply_to_text: '{{ message.reply_to_text }}',
-            text: '{{ message.text }}',
+            {% if message.reply_to is not None %}
+            reply_to: {
+                id: {{ message.reply_to.id }},
+                text: '{{ message.reply_to.text }}'
+            },
+            {% else %}
+            reply_to: null,
+            {% endif %}
+            text: '{{ message.text|escapejs }}',
             created: '{{ message.created|date:"d.m.Y" }} {{ message.created|time:"H:i"}}'
         }
     ));
     {% endfor %}
+    scrollToBottom();
 
     function createMessageElement(message) {
         const messageDiv = document.createElement('div');
@@ -322,13 +329,13 @@
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
 
-        if (message.reply_to_text) {
+        if (message.reply_to) {
             const quoteDiv = document.createElement('div');
             quoteDiv.className = 'message-reply-quote';
-            quoteDiv.textContent = message.reply_to_text;
+            quoteDiv.textContent = message.reply_to.text;
             quoteDiv.onclick = (e) => {
                 e.stopPropagation();
-                scrollToMessage(message.reply_to_id);
+                scrollToMessage(message.reply_to.id);
             }
             contentDiv.appendChild(quoteDiv);
         }
@@ -413,7 +420,7 @@
     }
 
     function scrollToMessage(messageId) {
-        messageElement = document.querySelector(`[data-messageId="${messageId}"]`);
+        messageElement = document.querySelector(`[data-message-Id="${messageId}"]`);
         if (messageElement) {
             messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             messageElement.classList.add('highlighted');
