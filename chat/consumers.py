@@ -74,7 +74,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'id': message.id,
             'to': client.id,
             'to_telegram_id': client.telegram_id,
-            'from': manager.name,
+            'manager': manager.name,
             'text': data['text'],
             'reply_to_telegram_id': reply_to.telegram_id if reply_to is not None else None
         })
