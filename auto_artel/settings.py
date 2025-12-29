@@ -94,7 +94,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         "OPTIONS": {
             "service": "auto_artel",
-            "passfile": ".pgpass",
+            "passfile": ".pgpass"
         },
     }
 }
