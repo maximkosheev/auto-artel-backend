@@ -30,8 +30,6 @@ COPY . /app/
 # Create necessary directories
 RUN mkdir -p /app/staticfiles /app/media /app/logs
 
-ENV DJANGO_SETTINGS_MODULE="auto_artel.develop"
-
 # Collect static files
 RUN python manage.py collectstatic --noinput --clear
 
