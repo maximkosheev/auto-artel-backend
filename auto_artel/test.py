@@ -16,13 +16,13 @@ LOGGING = {
         'root': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': 'auto-artel.log',
+            'filename': '/app/logs/auto-artel.log',
             'formatter': 'simple'
         },
         'api': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': 'auto-artel-api.log',
+            'filename': '/app/logs/auto-artel-api.log',
             'formatter': 'simple'
         },
     },

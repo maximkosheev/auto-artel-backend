@@ -13,6 +13,7 @@ import datetime
 import os
 from pathlib import Path
 
+from django.core.management.utils import get_random_secret_key
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -24,7 +25,7 @@ CONTENT_DIR = BASE_DIR / "content"
 
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
-SECRET_KEY = 'django-insecure-b5#8^@!2e_(vspz)nv&0ksnh6g&sou$=6+rl*vu*iv#dq8_0at'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', default=get_random_secret_key())
 
 # Application definition
 

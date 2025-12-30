@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-echo "Waiting for PostgreSQL [$POSTGRES_HOST] to be ready..."
-until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "auto_artel" -c '\q' 2>/dev/null; do
+echo "Waiting for PostgreSQL [$DB_HOST] to be ready..."
+until PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -U "$DB_USER" -d "auto_artel" -c '\q' 2>/dev/null; do
   >&2 echo "PostgreSQL is unavailable - sleeping"
   sleep 2
 done
