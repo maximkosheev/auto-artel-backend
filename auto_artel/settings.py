@@ -24,6 +24,8 @@ CONTENT_DIR = BASE_DIR / "content"
 
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
+SECRET_KEY = 'django-insecure-b5#8^@!2e_(vspz)nv&0ksnh6g&sou$=6+rl*vu*iv#dq8_0at'
+
 # Application definition
 
 INSTALLED_APPS = [
