@@ -92,9 +92,12 @@ ASGI_APPLICATION = 'auto_artel.asgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'auto_artel',
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
         "OPTIONS": {
-            "service": "auto_artel",
-            "passfile": ".pgpass"
         },
     }
 }
