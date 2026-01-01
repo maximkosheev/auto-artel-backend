@@ -12,5 +12,11 @@ echo "PostgreSQL is up - continuing..."
 echo "Running database migrations..."
 python manage.py migrate --noinput
 
+echo "Creating groups, users, permissions"
+python manage.py init
+
+echo "Creating superuser"
+python manage.py createadmin --username "admin" --email "admin@email.com" --noinput
+
 echo "Starting Daphne server..."
 exec daphne -b 0.0.0.0 -p 8888 auto_artel.asgi:application

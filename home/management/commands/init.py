@@ -1,6 +1,7 @@
 import os
-from django.core.management.base import BaseCommand
+
 from django.contrib.auth.models import Group, Permission, User
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
@@ -39,7 +40,12 @@ class Command(BaseCommand):
         name_env = name.upper()
         user_pass_env = os.getenv(name_env + '_PASSWORD')
         user_email_env = os.getenv(name_env + '_EMAIL')
-        user = User.objects.create_user(username=name, password=user_pass_env, email=user_email_env)
+
+        try:
+            user = User.objects.get(username=name)
+        except User.DoesNotExists:
+            user = User.objects.create_user(username=name, password=user_pass_env, email=user_email_env)
+
         user.groups.add(group)
         user.save()
         self.stdout.write(

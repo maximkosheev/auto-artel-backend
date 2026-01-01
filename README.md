@@ -18,8 +18,10 @@
 3) **Создание групп и пользователей**
    ```bash
    python manage.py init
-   python manage.py createsuperuser
+   python manage.py createadmin --username <username> --email <email> --noinput
+   # пароль для супер пользователя задается в переменной окружения  DJANGO_SUPERUSER_PASSWORD
    ```
+
 ### Сборка Docker образа
 1) **Установить переменные окружения**
 2) **Сборка docker образа**
@@ -28,6 +30,9 @@
    ````
    p.s. на macbook M1+ нужно дополнительно задать тип платформы linux/amd64, 
    потому что иначе будет создан образ для платформы linux/arm64 и под linux такой образ не запустится.
+   ````bash
+   docker build --platform linux/amd6 -t auto_artel_backend:<tag1> .
+   ````
    
 3) **Создание docker образа для тестирования**
    ````bash
