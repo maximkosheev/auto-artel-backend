@@ -2,7 +2,17 @@ from .settings import *
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['auto-artel.madmax-code.ru']
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://auto-artel.madmax-code.ru:8000',
+    'https://auto-artel.madmax-code.ru:8000'
+]
+
+CORS_ORIGIN_WHITELIST = [
+    'http://auto-artel.madmax-code.ru:8000',
+    'https://auto-artel.madmax-code.ru:8000'
+]
 
 LOGGING = {
     'version': 1,

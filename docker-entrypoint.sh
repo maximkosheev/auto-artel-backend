@@ -9,6 +9,9 @@ done
 
 echo "PostgreSQL is up - continuing..."
 
+echo "Collection static files"
+python manage.py collectstatic --noinput --clear
+
 echo "Running database migrations..."
 python manage.py migrate --noinput
 
