@@ -43,7 +43,7 @@ class Command(BaseCommand):
 
         try:
             user = User.objects.get(username=name)
-        except User.DoesNotExists:
+        except User.DoesNotExist:
             user = User.objects.create_user(username=name, password=user_pass_env, email=user_email_env)
 
         user.groups.add(group)
