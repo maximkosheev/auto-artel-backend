@@ -1,4 +1,3 @@
-import re
 from django import forms
 
 from orders.models import Client, Manager
@@ -49,11 +48,3 @@ class ManagerForm(forms.ModelForm):
             "name": "Имя"
         }
         fields = ['user', 'name']
-
-    def save(self, commit=True):
-        manager = super(ManagerForm, self).save(commit)
-
-        if commit:
-            manager.save()
-
-        return manager
