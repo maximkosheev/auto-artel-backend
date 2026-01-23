@@ -48,4 +48,4 @@ class CreateChatMessageSerializer(serializers.Serializer):
 class PatchChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
-        fields = ['telegram_id']
+        fields = ['telegram_id', 'text']

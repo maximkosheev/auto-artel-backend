@@ -122,15 +122,22 @@ class ChatView(APIView):
         return Response(serializer.validated_data, status.HTTP_201_CREATED)
 
 
-class ChatMessageView(generics.UpdateAPIView):
+class ChatMessageView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsApiUser]
-    queryset = ChatMessage.objects.all()
-    lookup_field = 'pk'
-    serializer_class = PatchChatMessageSerializer
 
-    def partial_update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
+    def patch(self, request, *args, **kwargs):
+        try:
+            if 'id' in request.GET:
+                instance = ChatMessage.objects.get(pk=request.GET['id'])
+            elif 'telegram_id' in request.GET:
+                instance = ChatMessage.objects.get(telegram_id=request.GET['telegram_id'])
+            else:
+                return Response("Parameter 'id' or 'telegram_id' must be specified", status.HTTP_400_BAD_REQUEST)
+        except ChatMessage.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PatchChatMessageSerializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-        return Response(serializer.data)
+
+        return Response(status=status.HTTP_200_OK)

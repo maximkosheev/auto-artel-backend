@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import *
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
     TokenVerifyView
 )
+
+from .views import *
 
 app_name = 'api'
 
@@ -18,6 +19,6 @@ urlpatterns = [
     path('vehicle/', VehicleView.as_view(), name='vehicle'),
     path('orders/', OrderView.as_view(), name='orders'),
     path('chat/', ChatView.as_view(), name='chat'),
-    path('chat/message/<int:pk>/', ChatMessageView.as_view(), name='chat_message')
+    path('chat/message/', ChatMessageView.as_view(), name='chat_message')
 ]
 
