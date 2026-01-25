@@ -31,7 +31,7 @@
    p.s. на macbook M1+ нужно дополнительно задать тип платформы linux/amd64, 
    потому что иначе будет создан образ для платформы linux/arm64 и под linux такой образ не запустится.
    ````bash
-   docker build --platform linux/amd64 -t auto_artel_backend:<tag1> .
+   docker build --platform linux/amd64 -t auto_artel_backend:<tag1> . ('эта последняя точка ОБЯЗАТЕЛЬНА')
    ````
    
 3) **Создание docker образа для тестирования**
