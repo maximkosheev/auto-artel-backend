@@ -2,236 +2,7 @@
 
 {% block chat_extra_style %}
 <style>
-    .chat-header {
-        padding: 20px;
-        border-bottom: 1px solid #e0e0e0;
-        background: #fff;
-        font-size: 18px;
-        font-weight: 600;
-        flex-shrink: 0;
-    }
-
-    #chatContent {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        background: #fafafa;
-    }
-
-    .chat-messages {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px;
-        background: #fafafa;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .message {
-        margin-bottom: 15px;
-        display: flex;
-        position: relative;
-    }
-
-    .message.client-message {
-        justify-content: flex-start;
-    }
-
-    .message.manager-message {
-        justify-content: flex-end;
-    }
-
-    .message-content {
-        max-width: 70%;
-        padding: 10px 15px;
-        border-radius: 8px;
-        position: relative;
-        cursor: pointer;
-    }
-
-    .client-message .message-content {
-        background: #fff;
-        border: 1px solid #e0e0e0;
-    }
-
-    .manager-message .message-content {
-        background: #2196F3;
-        color: white;
-    }
-
-    .message-reply-quote {
-        background: rgba(0, 0, 0, 0.1);
-        padding: 8px;
-        border-radius: 4px;
-        margin-bottom: 8px;
-        font-size: 13px;
-        border-left: 3px solid rgba(0, 0, 0, 0.3);
-        cursor: pointer;
-        font-style: italic;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .manager-message .message-reply-quote {
-        border-left-color: rgba(255, 255, 255, 0.5);
-    }
-
-    .message-text {
-        word-wrap: break-word;
-        white-space: pre-wrap;
-    }
-
-    .message-media {
-        margin-top: 10px;
-    }
-
-    .message-media img {
-        max-width: 100%;
-        border-radius: 4px;
-        display: block;
-        margin-bottom: 5px;
-    }
-
-    .message-time {
-        font-size: 11px;
-        color: #999;
-        margin-top: 5px;
-    }
-
-    .manager-message .message-time {
-        color: rgba(255, 255, 255, 0.7);
-    }
-
-    /* Context Menu */
-    .context-menu {
-        position: fixed;
-        background: white;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        z-index: 1000;
-        min-width: 120px;
-        display: none;
-    }
-
-    .context-menu.show {
-        display: block;
-    }
-
-    .context-menu-item {
-        padding: 10px 15px;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-
-    .context-menu-item:hover {
-        background: #f0f0f0;
-    }
-
-    .context-menu-item:first-child {
-        border-radius: 4px 4px 0 0;
-    }
-
-    .context-menu-item:last-child {
-        border-radius: 0 0 4px 4px;
-    }
-
-    /* Message Input */
-    .message-input-area {
-        padding: 20px;
-        border-top: 1px solid #e0e0e0;
-        background: #fff;
-        flex-shrink: 0;
-    }
-
-    .reply-indicator {
-        background: #e3f2fd;
-        padding: 10px;
-        border-radius: 4px;
-        margin-bottom: 10px;
-        display: none;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 14px;
-    }
-
-    .reply-indicator.show {
-        display: flex;
-    }
-
-    .reply-text {
-        flex: 1;
-        font-style: italic;
-        color: #666;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .cancel-reply {
-        background: none;
-        border: none;
-        color: #2196F3;
-        cursor: pointer;
-        font-weight: 600;
-        padding: 0 10px;
-    }
-
-    .edit-indicator {
-        background: #fff3cd;
-        padding: 10px;
-        border-radius: 4px;
-        margin-bottom: 10px;
-        display: none;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 14px;
-    }
-
-    .edit-indicator.show {
-        display: flex;
-    }
-
-    .input-wrapper {
-        display: flex;
-        gap: 10px;
-    }
-
-    .message-input {
-        flex: 1;
-        padding: 12px;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-        font-size: 14px;
-        resize: none;
-        font-family: inherit;
-    }
-
-    .send-button {
-        padding: 12px 24px;
-        background: #2196F3;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: background 0.2s;
-    }
-
-    .send-button:hover {
-        background: #1976D2;
-    }
-
-    .send-button:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-    }
-
-    .message.highlighted {
-        animation: highlight 1s ease;
-    }
+    {% include 'chat/chat_with_client.css' %}
 </style>
 {% endblock chat_extra_style %}
 
@@ -250,8 +21,8 @@
         </div>
 
         <div class="edit-indicator" id="editIndicator">
-            <span class="reply-text">Editing message</span>
-            <button class="cancel-reply" onclick="cancelEdit()">Cancel</button>
+            <span class="edit-text" id="editText">Editing message</span>
+            <button class="cancel-edit" onclick="cancelEdit()">Cancel</button>
         </div>
 
         <div class="input-wrapper">
@@ -270,9 +41,45 @@
 
 <!-- Context Menu -->
 <div id="contextMenu" class="context-menu">
-    <div class="context-menu-item" onclick="replayMessage()">Reply</div>
+    <div class="context-menu-item" id="replyMenuItem" onclick="replayMessage()">Reply</div>
     <div class="context-menu-item" id="editMenuItem" onclick="editMessage()">Edit</div>
-    <div class="context-menu-item" id="deleteMenuItem" onclick="deleteMessage()">Delete</div>
+    <div class="context-menu-item" id="deleteMenuItem" onclick="askForDelete()">Delete</div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ошибка</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="errorText">
+          Текст ошибки
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="yesNoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ошибка</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="questionText">
+          Текст вопроса
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary confirm" data-bs-dismiss="modal" onclick="yesNoConfirmed()">Да</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 {% endblock chat_with_client %}
@@ -296,6 +103,12 @@
         });
     });
 
+    document.addEventListener('hide.bs.modal', function (event) {
+        if (document.activeElement) {
+            document.activeElement.blur();
+        }
+    });
+
     document.addEventListener('click', function() {
         document.getElementById('contextMenu').classList.remove('show');
         contextMenuMessage = null;
@@ -315,196 +128,15 @@
             reply_to: null,
             {% endif %}
             text: '{{ message.text|escapejs }}',
-            created: '{{ message.created|date:"d.m.Y" }} {{ message.created|time:"H:i"}}'
+            created: '{{ message.created|date:"d.m.Y" }} {{ message.created|time:"H:i" }}',
+            edited: '{{ message.edited|date:"d.m.Y" }} {{ message.edited|time:"H:i" }}'.trim(),
+            deleted: '{{ message.deleted|date:"d.m.Y" }} {{ message.deleted|time:"H:i" }}'.trim()
         }
     ));
     {% endfor %}
+
     scrollToBottom();
 
-    function createMessageElement(message) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${message.is_manager ? 'manager-message' : 'client-message'}`;
-        messageDiv.dataset.messageId = message.id;
-
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content';
-
-        if (message.reply_to) {
-            const quoteDiv = document.createElement('div');
-            quoteDiv.className = 'message-reply-quote';
-            quoteDiv.textContent = message.reply_to.text;
-            quoteDiv.onclick = (e) => {
-                e.stopPropagation();
-                scrollToMessage(message.reply_to.id);
-            }
-            contentDiv.appendChild(quoteDiv);
-        }
-
-        const textDiv = document.createElement('div');
-        textDiv.className = 'message-text';
-        textDiv.textContent = message.text;
-        contentDiv.appendChild(textDiv);
-
-        const timeDiv = document.createElement('div');
-        timeDiv.className = 'message-time';
-        timeDiv.textContent = message.created;
-        contentDiv.appendChild(timeDiv);
-
-        messageDiv.appendChild(contentDiv);
-
-        messageDiv.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            showContextMenu(e, message);
-        });
-
-        return messageDiv;
-    }
-
-    function sendMessage() {
-        const messageInput = document.getElementById("messageInput");
-        const messageText = messageInput.value.trim();
-
-        if (!messageText) {
-            return;
-        }
-
-        if (editingMessage) {
-        } else {
-            send_status = sendToWS({
-                action: 'send_message',
-                client_id: selected_client_id,
-                text: messageText,
-                reply_to_id: replyToMessage ? replyToMessage.id : null
-            })
-            if (send_status) {
-                cancelReply();
-                messageInput.value = '';
-            }
-        }
-    }
-
-    function replayMessage() {
-        if (!contextMenuMessage) return;
-        replyToMessage = contextMenuMessage;
-        document.getElementById('replyText').textContent = 'В ответ на: ' + truncateText(replyToMessage.text, 50);
-        document.getElementById('replyIndicator').classList.add('show');
-        document.getElementById('messageInput').focus();
-        document.getElementById('contextMenu').classList.remove('show');
-    }
-
-    function editMessage() {
-    }
-
-    function deleteMessage() {
-    }
-
-    function handleNewMessage(message) {
-        console.log("New message: ", message);
-        if (selected_client_id == message.client_id) {
-            const messageElement = createMessageElement(message);
-            messagesContainer.appendChild(messageElement);
-            scrollToBottom();
-        }
-    }
-
-    function cancelReply() {
-        replyToMessage = null;
-        document.getElementById('replyIndicator').classList.remove('show');
-    }
-
-    function cancelEdit() {
-        editingMessage = null;
-        document.getElementById('messageInput').value = '';
-        document.getElementById('editIndicator').classList.remove('show');
-        document.getElementById('sendButton').textContent = 'Send';
-    }
-
-    function scrollToMessage(messageId) {
-        messageElement = document.querySelector(`[data-message-Id="${messageId}"]`);
-        if (messageElement) {
-            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            messageElement.classList.add('highlighted');
-            setTimeout(() => {
-                messageElement.classList.remove('highlighted');
-            }, 1000);
-        }
-    }
-
-    function scrollToMessageWithHighlight(messageId, highlight = true) {
-        const messageElement = document.getElementById(messageId);
-
-        if (!messageElement) {
-            console.warn(`Message with ID "${messageId}" not found`);
-            return;
-        }
-
-        const container = document.getElementById('messagesContainer');
-
-        if (!container) {
-            console.warn('Messages container not found');
-            return;
-        }
-
-        // Calculate scroll position
-        const messageOffsetTop = messageElement.offsetTop;
-        const containerHeight = container.clientHeight;
-        const messageHeight = messageElement.offsetHeight;
-        const targetScrollTop = messageOffsetTop - (containerHeight / 2) + (messageHeight / 2);
-
-        // Scroll to the message
-        container.scrollTo({
-            top: targetScrollTop,
-            behavior: 'smooth'
-        });
-
-        // Optional: Add highlight effect
-        if (highlight) {
-            // Remove any existing highlights
-            document.querySelectorAll('.message.highlighted').forEach(msg => {
-                msg.classList.remove('highlighted');
-            });
-
-            // Add highlight class
-            messageElement.classList.add('highlighted');
-
-            // Remove highlight after animation
-            setTimeout(() => {
-                messageElement.classList.remove('highlighted');
-            }, 2000);
-        }
-    }
-
-    function scrollToBottom() {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-
-    function showContextMenu(event, message) {
-        event.stopPropagation();
-        contextMenuMessage = message;
-
-        const contextMenu = document.getElementById('contextMenu');
-        const editMenuItem = document.getElementById('editMenuItem');
-        const deleteMenuItem = document.getElementById('deleteMenuItem');
-
-        // Show/hide edit and delete options for manager messages only
-        if (message.is_manager) {
-            editMenuItem.style.display = 'block';
-            deleteMenuItem.style.display = 'block';
-        } else {
-            editMenuItem.style.display = 'none';
-            deleteMenuItem.style.display = 'none';
-        }
-
-        contextMenu.style.left = event.clientX + 'px';
-        contextMenu.style.top = event.clientY + 'px';
-        contextMenu.classList.add('show');
-    }
-
-    function truncateText(text, maxLen) {
-        if (!text) return '';
-        if (text.length < maxLen) return text;
-        return text.substring(0, maxLen) + '...';
-    }
-
+    {% include 'chat/chat_with_client.js' %}
 </script>
 {% endblock chat_extra_js %}

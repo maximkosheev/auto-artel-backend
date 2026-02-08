@@ -6,9 +6,9 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.views.decorators.csrf import csrf_exempt
 
+from auto_artel.broker import broker
 from chat.models import ChatMessage
 from orders.models import Client, Manager
-from auto_artel.broker import broker
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.new_message({
                 'message': message
             })
+        elif action == 'edit_message':
+            message = await self.edit_message(data)
+            await self.update_message({
+                'message': message
+            })
 
     @database_sync_to_async
     def mark_messages_read(self, client_id):
@@ -80,7 +85,28 @@ class ChatConsumer(AsyncWebsocketConsumer):
         })
         return message
 
+    @database_sync_to_async
+    def edit_message(self, data) -> ChatMessage | None:
+        chat_message = ChatMessage.objects.get(pk=data['message_id'])
+        chat_message.text = data['text']
+        chat_message.edited = datetime.now(UTC)
+        chat_message.save(update_fields=['text', 'edited'])
+
+        broker.send_chat_message({
+            'id': chat_message.id,
+            'to': chat_message.client.id,
+            'to_telegram_id': chat_message.client.telegram_id,
+            'manager': chat_message.manager.name,
+            'text': data['text'],
+            'edit_telegram_id': chat_message.telegram_id
+        })
+        return chat_message
+
     async def new_message(self, event):
+        """
+        Отправка события 'Новое сообщение' через WebSocker обратно на страницу в браузере, чтобы тот добавил новое
+        сообщение в окно переписки
+        """
         message = event['message']
         if message.reply_to:
             reply_to = {
@@ -101,6 +127,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'created': message.created.strftime("%d.%m.%Y %H:%M")
             }
         }))
+
+    async def update_message(self, event):
+        """
+        Отправка события 'Сообщение отредактировано' через WebSocket обратно на страницу в браузере, чтобы тот обновил
+        плашку сообщения в окне переписки
+        """
+        message = event['message']
+        message_to_send = json.dumps({
+            'type': 'edit_message',
+            'message': {
+                'id': message.id,
+                'client_id': message.client.id,
+                'is_manager': message.manager is not None,
+                'text': message.text,
+                'reply_to': None,
+                'edited': message.edited.strftime("%d.%m.%Y %H:%M")
+            }
+        })
+        await self.send(text_data=message_to_send)
 
     def _get_reply_to(self, reply_to_id) -> ChatMessage | None:
         if reply_to_id:

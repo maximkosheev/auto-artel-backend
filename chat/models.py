@@ -12,6 +12,8 @@ class ChatMessage(models.Model):
     client = models.ForeignKey(Client, on_delete=models.RESTRICT)
     manager = models.ForeignKey(Manager, null=True, on_delete=models.RESTRICT)
     created = models.DateTimeField(default=timezone.now)
+    edited = models.DateTimeField(null=True)
+    deleted = models.DateTimeField(null=True)
     text = models.TextField()
     media = fields.ArrayField(
         models.TextField(),
