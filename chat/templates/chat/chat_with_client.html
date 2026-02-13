@@ -43,7 +43,6 @@
 <div id="contextMenu" class="context-menu">
     <div class="context-menu-item" id="replyMenuItem" onclick="replayMessage()">Reply</div>
     <div class="context-menu-item" id="editMenuItem" onclick="editMessage()">Edit</div>
-    <div class="context-menu-item" id="deleteMenuItem" onclick="askForDelete()">Delete</div>
 </div>
 
 <!-- Modal -->
@@ -59,24 +58,6 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal fade" id="yesNoModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Ошибка</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="questionText">
-          Текст вопроса
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary confirm" data-bs-dismiss="modal" onclick="yesNoConfirmed()">Да</button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
       </div>
     </div>
   </div>

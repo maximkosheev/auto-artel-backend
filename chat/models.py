@@ -1,7 +1,6 @@
 from django.contrib.postgres import fields
 from django.db import models
-from django.utils import timezone
-
+from datetime import datetime, UTC
 from orders.models import Client, Manager
 
 
@@ -11,7 +10,7 @@ class ChatMessage(models.Model):
     reply_to = models.ForeignKey('self', null=True, related_name="+",  on_delete=models.RESTRICT)
     client = models.ForeignKey(Client, on_delete=models.RESTRICT)
     manager = models.ForeignKey(Manager, null=True, on_delete=models.RESTRICT)
-    created = models.DateTimeField(default=timezone.now)
+    created = models.DateTimeField(default=datetime.now(UTC))
     edited = models.DateTimeField(null=True)
     deleted = models.DateTimeField(null=True)
     text = models.TextField()

@@ -1,3 +1,5 @@
+from datetime import datetime, UTC
+
 from rest_framework import serializers
 from rest_framework.fields import empty
 
@@ -49,3 +51,19 @@ class PatchChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
         fields = ['telegram_id', 'text']
+        read_only_fields = ['edited']
+
+    def update(self, instance, validated_data):
+        request = self.context.get("request")
+        if (
+            request
+            and request.method == 'PATCH'
+            and 'text' in self.initial_data
+        ):
+            instance.edited = datetime.now(UTC)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance

@@ -103,11 +103,6 @@ function editMessage() {
     document.getElementById('contextMenu').classList.remove('show');
 }
 
-function deleteMessage() {
-    if (!deletingMessage) return;
-    console.log('You have deleted message!')
-}
-
 function showError(text) {
     modalDiv = document.getElementById('errorModal');
     modalText = document.getElementById('errorText');
@@ -115,26 +110,6 @@ function showError(text) {
     dialog = new bootstrap.Modal(modalDiv, {keyboard: false});
     modalText.textContent = text
     dialog.show();
-}
-
-let yesNoConfirmedHandler = null;
-
-function askForDelete() {
-    if (!contextMenuMessage) return
-    deletingMessage = contextMenuMessage;
-
-    modalDiv = document.getElementById('yesNoModal');
-    modalText = document.querySelector('#yesNoModal div.modal-body')
-
-    dialog = new bootstrap.Modal(modalDiv, {keyboard: false});
-    modalText.textContent = 'Данное сообщение будет удалено, в том числе у клиента. Удалить?';
-    yesNoConfirmedHandler = deleteMessage;
-    dialog.show();
-}
-
-function yesNoConfirmed() {
-    if (!yesNoConfirmedHandler) return;
-    yesNoConfirmedHandler();
 }
 
 function handleNewMessage(message) {
@@ -190,12 +165,10 @@ function showContextMenu(event, message) {
     const contextMenu = document.getElementById('contextMenu');
     const replyMenuItem = document.getElementById('replyMenuItem');
     const editMenuItem = document.getElementById('editMenuItem');
-    const deleteMenuItem = document.getElementById('deleteMenuItem');
 
     // Show/hide edit and delete options for manager messages only
     if (message.is_manager) {
         editMenuItem.style.display = 'block';
-        deleteMenuItem.style.display = 'block';
     } else {
         if (isMessageDeleted(message)) {
             replyMenuItem.classList.add('disabled');
@@ -203,7 +176,6 @@ function showContextMenu(event, message) {
             replyMenuItem.classList.remove('disabled');
         }
         editMenuItem.style.display = 'none';
-        deleteMenuItem.style.display = 'none';
     }
 
     contextMenu.style.left = event.clientX + 'px';

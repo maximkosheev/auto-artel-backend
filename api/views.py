@@ -1,4 +1,7 @@
+from datetime import datetime, UTC
+
 from django.db.models import Q
+from rest_framework import generics
 from rest_framework import status
 from rest_framework.generics import (
     RetrieveAPIView,
@@ -8,7 +11,6 @@ from rest_framework.generics import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import generics
 
 from api.serializers.chat_message_serializers import CreateChatMessageSerializer, PatchChatMessageSerializer
 from api.serializers.client_serializers import ClientRegisterSerializer, ClientDetailSerializer, ClientSerializer
@@ -16,7 +18,9 @@ from api.serializers.order_serializers import OrderSerializer, OrderCreateSerial
 from api.serializers.vehicle_serializers import CreateVehicleSerializer
 from chat.models import ChatMessage
 from orders.models import Client, Order
-from django.db import connection
+
+
+#from django.db import connection
 
 
 class IsApiUser(IsAuthenticated):
@@ -122,22 +126,40 @@ class ChatView(APIView):
         return Response(serializer.validated_data, status.HTTP_201_CREATED)
 
 
-class ChatMessageView(generics.RetrieveUpdateAPIView):
+class ChatMessageView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsApiUser]
+
+    def get_object(self):
+        request = self.request
+
+        if 'id' in request.GET:
+            return ChatMessage.objects.get(pk=request.GET['id'])
+        elif 'telegram_id' in request.GET:
+            return ChatMessage.objects.get(telegram_id=request.GET['telegram_id'])
+        else:
+            raise KeyError("Parameter 'id' or 'telegram_id' must be specified")
 
     def patch(self, request, *args, **kwargs):
         try:
-            if 'id' in request.GET:
-                instance = ChatMessage.objects.get(pk=request.GET['id'])
-            elif 'telegram_id' in request.GET:
-                instance = ChatMessage.objects.get(telegram_id=request.GET['telegram_id'])
-            else:
-                return Response("Parameter 'id' or 'telegram_id' must be specified", status.HTTP_400_BAD_REQUEST)
+            instance = self.get_object()
         except ChatMessage.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
+        except KeyError as e:
+            return Response(e.args, status.HTTP_400_BAD_REQUEST)
 
-        serializer = PatchChatMessageSerializer(instance, data=request.data, partial=True)
+        serializer = PatchChatMessageSerializer(instance, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
         return Response(status=status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            instance.deleted = datetime.now(UTC)
+            instance.save(update_fields=['deleted'])
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except ChatMessage.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except KeyError as e:
+            return Response(e.args, status.HTTP_400_BAD_REQUEST)
