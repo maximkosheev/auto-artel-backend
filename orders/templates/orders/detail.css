@@ -1,0 +1,38 @@
+/* Order Detail Styles */
+.order-detail-container {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+}
+
+.order-detail-header {
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+.order-detail-title {
+    font-size: 28px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.order-detail-field {
+    display: flex;
+    margin-bottom: 15px;
+    align-items: flex-start;
+}
+
+.order-detail-label {
+    font-weight: 600;
+    color: #495057;
+    min-width: 150px;
+    margin-right: 20px;
+}
+
+.order-detail-value {
+    color: #333;
+    flex: 1;
+}

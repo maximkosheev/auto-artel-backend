@@ -1,50 +1,173 @@
 {% extends 'orders/base.html' %}
 
-{% block orders_content %}
-<div class="order-list-container">
-    <div class="order-list-header">
-        <h1>Заказы</h1>
+{% block orders_extra_style %}
+<style>
+    {% include 'orders/list.css' %}
+</style>
+{% endblock orders_extra_style %}
+
+{% block orders_extra_content %}
+<div class="container">
+    <div class="order-list-container">
+        <div class="order-list-header">
+            <h1>Заказы</h1>
+        </div>
+
+        <table class="order-table">
+            <thead>
+                <tr>
+                    <th>Номер</th>
+                    <th>Клиент</th>
+                    <th>Менеджер</th>
+                    <th>Дата создания</th>
+                    <th>Статус</th>
+                    <th>Кратко</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr class="order-row status-{{ order.status|lower }}">
+                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.id }}</a></td>
+                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.client.name }}</a></td>
+                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.manager.name }}</a></td>
+                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.created|date:"M d, Y H:i" }}</a></td>
+                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">
+                        <span class="status-badge status-{{ order.status|lower }}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </a></td>
+                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">
+                        {{ order.initial_requirements|truncatechars:50}}
+                    </a></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 40px; color: #666;">
+                        Нет ни одного заказа
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    
-    <table class="order-table">
-        <thead>
-            <tr>
-                <th>Номер</th>
-                <th>Клиент</th>
-                <th>Менеджер</th>
-                <th>Дата создания</th>
-                <th>Статус</th>
-                <th>Кратко</th>
-                <th>Ещё...</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for order in orders %}
-            <tr class="order-row {% if order.status == 'NEW' %}status-new{% endif %}">
-                <td>{{ order.id }}</td>
-                <td>{{ order.client.name }}</td>
-                <td>{{ order.manager.name }}</td>
-                <td>{{ order.created|date:"M d, Y H:i" }}</td>
-                <td>
-                    <span class="status-badge status-{{ order.status|lower }}">
-                        {{ order.get_status_display }}
-                    </span>
-                </td>
-                <td>{{ order.initial_requirements|truncatechars:50}}</td>
-                <td>
-                    <button class="context-menu-btn" onclick="showContextMenu(event, {{ order.id }})">
-                        ⋯
-                    </button>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" style="text-align: center; padding: 40px; color: #666;">
-                    Нет ни одного заказа
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
 </div>
-{% endblock %}
+
+<!-- Notification Popup Template -->
+<div id="notification-popup" class="notification-popup">
+    <div class="notification-content">
+        <div class="notification-text" id="notification-text"></div>
+        <button class="notification-close" id="notification-close" onclick="closeNotification(event)">&times;</button>
+    </div>
+</div>
+
+<!-- Context Menu Template -->
+<div id="context-menu" class="context-menu">
+    <div class="context-menu-item" onclick="openOrderDetail(currentOrderId)">Детали</div>
+    <div class="context-menu-item" onclick="editOrder(currentOrderId)">Редактировать</div>
+    <div class="context-menu-item" onclick="openChat(currentOrderId)">Сообщения</div>
+    <div class="context-menu-item" onclick="deleteOrder(currentOrderId)">Удалить</div>
+</div>
+{% endblock orders_extra_content %}
+
+{% block orders_extra_js %}
+<script>
+    let currentOrderId = null;
+    let notificationTimeout = null;
+
+    // Show notification popup
+    function showNotification(orderData) {
+        const popup = document.getElementById('notification-popup');
+        const text = document.getElementById('notification-text');
+
+        text.textContent = 'New order is registered';
+        popup.style.display = 'block';
+        popup.dataset.orderId = orderData.order_id;
+
+        // Auto-close after 30 seconds
+        if (notificationTimeout) {
+            clearTimeout(notificationTimeout);
+        }
+        notificationTimeout = setTimeout(() => {
+            closeNotification();
+        }, 30000);
+    }
+
+    // Close notification
+    function closeNotification(event) {
+        if (event) {
+            event.stopPropagation();
+        }
+        const popup = document.getElementById('notification-popup');
+        popup.style.display = 'none';
+        if (notificationTimeout) {
+            clearTimeout(notificationTimeout);
+            notificationTimeout = null;
+        }
+    }
+
+    // Handle notification click (redirect to order detail)
+    document.getElementById('notification-popup').addEventListener('click', function(event) {
+        if (event.target.classList.contains('notification-close')) {
+            return;
+        }
+        const orderId = this.dataset.orderId;
+        if (orderId) {
+            window.open(`/orders/${orderId}/`, '_blank');
+            closeNotification();
+        }
+    });
+
+    // Context menu functionality
+    function showContextMenu(event, orderId) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        currentOrderId = orderId;
+        const menu = document.getElementById('context-menu');
+
+        menu.style.display = 'block';
+        menu.style.left = event.pageX + 'px';
+        menu.style.top = event.pageY + 'px';
+    }
+
+    function hideContextMenu() {
+        const menu = document.getElementById('context-menu');
+        menu.style.display = 'none';
+        currentOrderId = null;
+    }
+
+    function openOrderDetail(orderId) {
+        window.open(`/orders/${orderId}/`, '_blank');
+        hideContextMenu();
+    }
+
+    function editOrder(orderId) {
+        window.open(`/orders/${orderId}/edit/`, '_blank');
+        hideContextMenu();
+    }
+
+    function openChat(orderId) {
+        // Placeholder for chat functionality
+        console.log('Opening chat for order:', orderId);
+        hideContextMenu();
+    }
+
+    function deleteOrder(orderId) {
+        // Placeholder for delete functionality
+        console.log('Deleting order:', orderId);
+        hideContextMenu();
+    }
+
+    // Hide context menu when clicking elsewhere
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('.context-menu') && !event.target.closest('.context-menu-btn')) {
+            hideContextMenu();
+        }
+    });
+
+    // Initialize WebSocket connection
+    document.addEventListener('DOMContentLoaded', function() {
+        //connectWebSocket();
+    });
+</script>
+{% endblock orders_extra_js %}

@@ -1,0 +1,17 @@
+{# Reusable partial: single order item in the right-side list #}
+<div class="list-group-item list-group-item-action py-2 px-3">
+  <div class="d-flex justify-content-between align-items-start">
+    <div>
+      <div class="fw-semibold small">{{ item.name|default:"—" }}</div>
+      <div class="text-muted" style="font-size:.75rem">
+        <code>{{ item.article_number|default:"—" }}</code>
+        {% if item.manufacture %}&nbsp;·&nbsp;{{ item.manufacture }}{% endif %}
+      </div>
+    </div>
+    {% if item.price %}
+      <span class="badge bg-primary ms-2 text-nowrap">
+        {{ item.price }} ₽
+      </span>
+    {% endif %}
+  </div>
+</div>

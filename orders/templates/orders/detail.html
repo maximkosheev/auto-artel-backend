@@ -1,5 +1,11 @@
 {% extends 'orders/base.html' %}
 
+{% block orders_extra_style %}
+<style>
+    {% include 'orders/detail.css' %}
+</style>
+{% endblock orders_extra_style %}
+
 {% block content %}
 <div class="order-detail-container">
     <div class="order-detail-header">

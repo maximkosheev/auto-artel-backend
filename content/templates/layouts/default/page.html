@@ -1,4 +1,4 @@
-{% load bootstrap4 static %}
+{% load django_bootstrap5 static %}
 
 <!DOCTYPE html>
 <html lang="ru">
@@ -12,7 +12,7 @@
 
     <title>The best service</title>
 
-    <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+    {% bootstrap_css %}
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
 
     {% block extra_style %}
@@ -66,9 +66,12 @@
 
 <script src="{% static 'vendor/jquery/jquery-3.4.1.min.js' %}"></script>
 <script src="{% static 'vendor/popper/popper.min.js' %}"></script>
-<script src="{% static 'vendor/bootstrap/js/bootstrap.min.js' %}"></script>
+{% bootstrap_javascript %}
 
 <script src="{% static 'js/ie10-viewport-bug-workaround.js' %}"></script>
+
+{% block extra_js %}
+{% endblock extra_js %}
 
 </body>
 </html>

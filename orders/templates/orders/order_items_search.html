@@ -1,0 +1,329 @@
+{% extends 'orders/base.html' %}
+
+{% block title %}Поиск запчастей — Заказ #{{ order.id }}{% endblock %}
+
+{% block orders_extra_content %}
+<div class="container-fluid py-4">
+
+  {# ── Header ── #}
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'orders:detail' order.id %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> К заказу
+    </a>
+    <h4 class="mb-0">
+      Поиск запчастей
+      <span class="text-muted fw-normal fs-6">— Заказ #{{ order.id }}</span>
+    </h4>
+  </div>
+
+  <div class="row g-4">
+
+    <div class="col-12 col-xl-8">
+
+      {# Search form #}
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <form id="searchForm" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <div class="col-sm-8 col-md-9">
+              <label for="articleInput" class="form-label fw-semibold">
+                Артикул запчасти
+              </label>
+              <input
+                type="text"
+                id="articleInput"
+                name="article_number"
+                class="form-control"
+                placeholder="Введите артикул…"
+                autofocus
+                required
+              >
+            </div>
+            <div class="col-sm-4 col-md-3">
+              <button type="submit" class="btn btn-primary w-100" id="searchBtn">
+                <span id="searchBtnText">
+                  <i class="bi bi-search me-1"></i> Найти
+                </span>
+                <span id="searchBtnSpinner" class="d-none">
+                  <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                  Поиск…
+                </span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {# Error alert #}
+      <div id="searchError" class="alert alert-danger d-none" role="alert"></div>
+
+      {# Results table #}
+      <div id="resultsSection" class="d-none">
+        <div class="card shadow-sm">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">
+              Результаты поиска
+              <span class="badge bg-secondary ms-1" id="resultCount">0</span>
+            </span>
+            <small class="text-muted" id="searchedArticle"></small>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover table-bordered mb-0 align-middle">
+              <thead class="table-dark">
+                <tr>
+                  <th>Артикул</th>
+                  <th>Производитель</th>
+                  <th>Наименование</th>
+                  <th class="text-end">Цена</th>
+                  <th class="text-center">Кол-во</th>
+                  <th>Срок доставки</th>
+                  <th>Склад</th>
+                  <th class="text-center">Добавить</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {# Empty state #}
+      <div id="emptyState" class="text-center text-muted py-5 d-none">
+        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+        По данному артикулу ничего не найдено.
+      </div>
+
+    </div>
+
+    {# Список уже добавленных в заказ позиций #}
+    <div class="col-12 col-xl-4">
+      <div class="card shadow-sm" id="orderItemsCard">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Позиции заказа</span>
+          <span class="badge bg-primary" id="orderItemCount">{{ order.order_item_list.count }}</span>
+        </div>
+        <div class="list-group list-group-flush" id="orderItemsList" style="max-height: 600px; overflow-y: auto;">
+          {% for item in order_items %}
+            {% include "orders/_order_item_row.html" with item=item %}
+          {% empty %}
+            <div class="list-group-item text-muted text-center py-3" id="emptyOrderItems">
+              <i class="bi bi-cart-x me-1"></i> Позиций пока нет
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{# Toast notification #}
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
+  <div id="addToast" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMessage">
+        Позиция добавлена в заказ.
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endblock orders_extra_content %}
+
+
+{% block orders_extra_js %}
+<script>
+const SEARCH_URL = "{% url 'orders:items_search_results' %}";
+const ADD_URL    = "{% url 'orders:add_order_item' order.id %}";
+const CSRF_TOKEN = "{{ csrf_token }}";
+
+/* ── Helpers ── */
+function setSearchLoading(loading) {
+  document.getElementById("searchBtnText").classList.toggle("d-none", loading);
+  document.getElementById("searchBtnSpinner").classList.toggle("d-none", !loading);
+  document.getElementById("searchBtn").disabled = loading;
+}
+
+function showError(msg) {
+  const el = document.getElementById("searchError");
+  el.textContent = msg;
+  el.classList.remove("d-none");
+}
+
+function hideError() {
+  document.getElementById("searchError").classList.add("d-none");
+}
+
+function formatPrice(price) {
+  return new Intl.NumberFormat("ru-RU", {style: "currency", currency: "RUB"}).format(price);
+}
+
+/* ── Search ── */
+document.getElementById("searchForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  hideError();
+
+  const articleNumber = document.getElementById("articleInput").value.trim();
+  if (!articleNumber) return;
+
+  setSearchLoading(true);
+
+  const formData = new FormData();
+  formData.append("article_number", articleNumber);
+  formData.append("csrfmiddlewaretoken", CSRF_TOKEN);
+
+  try {
+    const resp = await fetch(SEARCH_URL, {method: "POST", body: formData});
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      showError(data.error || "Ошибка при обращении к поставщику.");
+      document.getElementById("resultsSection").classList.add("d-none");
+      document.getElementById("emptyState").classList.add("d-none");
+      return;
+    }
+
+    renderResults(data.items, articleNumber);
+  } catch (err) {
+    showError("Сетевая ошибка. Попробуйте снова.");
+  } finally {
+    setSearchLoading(false);
+  }
+});
+
+function renderResults(items, articleNumber) {
+  const body    = document.getElementById("resultsBody");
+  const section = document.getElementById("resultsSection");
+  const empty   = document.getElementById("emptyState");
+
+  body.innerHTML = "";
+
+  if (!items || items.length === 0) {
+    section.classList.add("d-none");
+    empty.classList.remove("d-none");
+    return;
+  }
+
+  empty.classList.add("d-none");
+  section.classList.remove("d-none");
+
+  document.getElementById("resultCount").textContent  = items.length;
+  document.getElementById("searchedArticle").textContent = `Артикул: ${articleNumber}`;
+
+  items.forEach(item => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><code>${escHtml(item.article_number)}</code></td>
+      <td>${escHtml(item.manufacture)}</td>
+      <td>${escHtml(item.name)}</td>
+      <td class="text-end text-nowrap">${formatPrice(item.price)}</td>
+      <td class="text-center">
+        <span class="badge ${item.count > 5 ? 'bg-success' : item.count > 0 ? 'bg-warning text-dark' : 'bg-danger'}">
+          ${item.count}
+        </span>
+      </td>
+      <td>${escHtml(item.delivery_time)}</td>
+      <td><small>${escHtml(item.warehouse_location)}</small></td>
+      <td class="text-center">
+        <button
+          class="btn btn-sm btn-outline-primary add-to-order-btn"
+          title="Добавить в заказ"
+          data-item='${escAttr(JSON.stringify(item))}'
+        >
+          <i class="bi bi-cart-plus-fill"></i>
+        </button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+
+  /* Attach listeners to new buttons */
+  body.querySelectorAll(".add-to-order-btn").forEach(btn => {
+    btn.addEventListener("click", handleAddToOrder);
+  });
+}
+
+/* ── Add to order ── */
+async function handleAddToOrder(e) {
+  const btn  = e.currentTarget;
+  const item = JSON.parse(btn.dataset.item);
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+  try {
+    const resp = await fetch(ADD_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": CSRF_TOKEN,
+      },
+      body: JSON.stringify(item),
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      alert(data.error || "Не удалось добавить позицию.");
+      return;
+    }
+
+    btn.classList.replace("btn-outline-primary", "btn-success");
+    btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+
+    appendOrderItem(data.item);
+    showToast(`«${item.name}» добавлен в заказ.`);
+  } catch (err) {
+    alert("Сетевая ошибка.");
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-cart-plus-fill"></i>';
+  }
+}
+
+/* ── Order items sidebar ── */
+function appendOrderItem(item) {
+  const list  = document.getElementById("orderItemsList");
+  const badge = document.getElementById("orderItemCount");
+
+  /* Remove "empty" placeholder if present */
+  const emptyEl = document.getElementById("emptyOrderItems");
+  if (emptyEl) emptyEl.remove();
+
+  const div = document.createElement("div");
+  div.className = "list-group-item list-group-item-action py-2 px-3";
+  div.innerHTML = `
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <div class="fw-semibold small">${escHtml(item.name)}</div>
+        <div class="text-muted" style="font-size:.75rem">
+          <code>${escHtml(item.article_number)}</code>
+          &nbsp;·&nbsp;${escHtml(item.manufacture)}
+        </div>
+      </div>
+      <span class="badge bg-primary ms-2 text-nowrap">${formatPrice(item.price)}</span>
+    </div>
+  `;
+  list.appendChild(div);
+
+  badge.textContent = parseInt(badge.textContent || "0") + 1;
+}
+
+/* ── Toast ── */
+function showToast(msg) {
+  document.getElementById("toastMessage").textContent = msg;
+  const toastEl = document.getElementById("addToast");
+  bootstrap.Toast.getOrCreateInstance(toastEl, {delay: 3000}).show();
+}
+
+/* ── XSS helpers ── */
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function escAttr(str) {
+  return String(str).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+}
+</script>
+{% endblock %}

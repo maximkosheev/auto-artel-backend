@@ -4,6 +4,31 @@ from django.forms import inlineformset_factory
 from .models import Order, OrderItem
 
 
+class OrderNewForm(forms.ModelForm):
+    class Meta:
+        model = Order
+        fields = ['client', 'initial_requirements', 'created']
+        widgets = {
+            'client': forms.TextInput(attrs={
+                'readonly': True
+            }),
+            'initial_requirements': forms.Textarea(attrs={
+                'class': 'form-control',
+                'readonly': True,
+                'rows': 4,
+                'placeholder': 'Пожелания клиента'
+            }),
+            'created': forms.DateTimeInput(attrs={
+                'readonly': True
+            })
+        }
+        labels = {
+            'client': 'Клиент',
+            'initial_requirements': 'Исходные требования клиента',
+            'created': 'Дата создания'
+        }
+
+
 class OrderForm(forms.ModelForm):
     class Meta:
         model = Order

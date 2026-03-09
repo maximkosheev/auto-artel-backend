@@ -1,0 +1,85 @@
+{% extends 'orders/base.html' %}
+
+{% block orders_extra_content %}
+    <div class="mt-4">
+        <h2>Заказ № {{ order.id }}</h2>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <!-- Order Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Детали заказа</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-auto">
+                            <span>Клиент:</span>
+                            <span>{{ order.client }}</span>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-auto">
+                            <span>Дата создания:</span>
+                            <span>{{ order.created|date:"d.m.Y" }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <span>Исходные требования клиента:</span>
+                        {{ form.initial_requirements }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Позиции заказа</h5>
+                    <a href="{% url 'orders:items_search' order.id %}">Найти на складе</a>
+                </div>
+                {% if order.order_item_list.all|length > 0 %}
+                <table class="table">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Код</th>
+                        <th>Производитель</th>
+                        <th>Наименование</th>
+                        <th>Цена</th>
+                        <th>Кол-во</th>
+                        <th>Срок доставки</th>
+                        <th>Склад</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in order.order_item_list.all %}
+                    <tr>
+                        <th scope="row">{{ item.article_number }}</th>
+                        <td>{{ item.manufacture }}</td>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.price }}</td>
+                        <td>{{ item.count }}</td>
+                        <td>{{ item.delivery_time }}</td>
+                        <td>{{ item.warehouse }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div>Пока нет ни одной позиции</div>
+                {% endif %}
+            </div>
+
+            <div class="alert alert-info mt-4">
+                Чтобы начать работу с заказом, нужно взять его в работу
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    Взять в работу
+                </button>
+                <a href="{% url 'orders:list' %}" class="btn btn-secondary">Отмена</a>
+            </div>
+        </form>
+    </div>
+{% endblock orders_extra_content %}

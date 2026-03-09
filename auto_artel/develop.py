@@ -25,6 +25,12 @@ LOGGING = {
             'filename': 'auto-artel-api.log',
             'formatter': 'simple'
         },
+        'parts_providers': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'auto-artel-providers.log',
+            'formatter': 'simple'
+        }
     },
     'loggers': {
         'root': {
@@ -34,6 +40,11 @@ LOGGING = {
         },
         'api.views': {
             'handlers': ['api'],
+            'level': 'DEBUG',
+            'propagate': False
+        },
+        'parts_providers': {
+            'handlers': ['parts_providers'],
             'level': 'DEBUG',
             'propagate': False
         }

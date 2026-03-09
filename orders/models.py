@@ -73,8 +73,10 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     id = models.BigAutoField(primary_key=True)
-    article_number = models.CharField(null=True, help_text='Артикул')
+    article_number = models.CharField(help_text='Артикул')
     manufacture = models.CharField(null=True, help_text='Производитель')
     name = models.CharField(null=True, help_text='Наименование')
     price = models.DecimalField(null=True, max_digits=19, decimal_places=2, help_text='Стоимость')
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_item_list')
+    confirmed = models.BooleanField(default=False, help_text='Признак, что данная позиция утверждена в заказе')
+

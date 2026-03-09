@@ -19,7 +19,7 @@
 </style>
 {% endblock orders_extra_style %}
 
-{% block orders_content %}
+{% block orders_extra_content %}
     <div class="mt-4">
         <h2>{% if is_edit %}Редактирование заказа{% else %}Новый заказ{% endif %}</h2>
 
@@ -172,7 +172,7 @@
             </div>
         </form>
     </div>
-{% endblock orders_content %}
+{% endblock orders_extra_content %}
 
 {% block orders_extra_js %}
 <script>

@@ -1,0 +1,2 @@
+class ProviderApiError(Exception):
+    pass

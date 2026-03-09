@@ -16,6 +16,8 @@ from pathlib import Path
 from django.core.management.utils import get_random_secret_key
 from dotenv import load_dotenv
 
+from parts_providers.armtek import ArmTekProvider
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONTENT_DIR = BASE_DIR / "content"
@@ -38,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Vendor apps
-    "bootstrap4",
+    "django_bootstrap5",
     "rest_framework_simplejwt",
     # AutoArtel apps
     'channels',
@@ -160,6 +162,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
+
+AUTO_PARTS_PROVIDERS = {
+    'arm_teck': {
+        'name': 'ARMTECK',
+        'instance': ArmTekProvider(),
+        'enabled': True
+    }
+}
 
 
 def stub():
