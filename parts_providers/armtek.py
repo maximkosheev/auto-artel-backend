@@ -1,5 +1,7 @@
 import logging
 import os
+from json import JSONDecodeError
+
 import pydantic
 
 import requests
@@ -50,7 +52,7 @@ class ArmTekProvider(AutoPartsProvider):
             raise ProviderApiError('Ошибка запроса данных у поставщика')
 
     @property
-    def userInfo(self):
+    def user_info(self):
         if self._userInfo:
             return self._userInfo
 
@@ -74,7 +76,7 @@ class ArmTekProvider(AutoPartsProvider):
 
     @property
     def buyer(self):
-        return self.userInfo.RG_TAB[0].KUNNR
+        return self.user_info.RG_TAB[0].KUNNR
 
     def search(self, pin):
         logger.debug(f"ArmTek search for pin: {pin}")
@@ -86,36 +88,44 @@ class ArmTekProvider(AutoPartsProvider):
         if response.status_code == 200:
             try:
                 response_data = response.json()
-                logger.debug(f"ArmTek search pin '{pin}' response: {response_data}")
+                api_response = SearchPinResponse.model_validate(response_data)
+                if type(api_response.RESP) is list:
+                    return list(map(lambda RESP_Item:
+                                    self.__map_search_pin_item_to_search_result_item(RESP_Item),
+                                    api_response.RESP))
+                else:
+                    return []
+            except JSONDecodeError as ex:
+                logger.error(f"Parse error occurred: {ex}, when parsing data: {response.json()}")
+                raise ProviderApiError('Ошибка запроса данных у поставщика')
             except Exception as e:
-                logger.error("")
+                logger.error(f"Случилась ошибка: {e}")
+                raise ProviderApiError('Ошибка запроса данных у поставщика')
         else:
             logger.error(f"ArmTek response status: {response.status_code}, body: {response.json()}")
             raise ProviderApiError('Ошибка запроса данных у поставщика')
 
-        item1 = SearchResultItem()
-        item1.article_number = pin
-        item1.manufacture = "FORD"
-        item1.name = "Какая-то хуйня"
-        item1.price = 1000.00
-        item1.count = 100
-        item1.delivery_time = "10 дней"
-        item1.warehouse_location = "Челябинск"
-
-        return [
-            item1
-        ]
+    def __map_search_pin_item_to_search_result_item(self, search_pin_item):
+        result = SearchResultItem()
+        result.article_number = search_pin_item.ARTID
+        result.manufacture = search_pin_item.BRAND
+        result.name = search_pin_item.NAME
+        result.price = search_pin_item.PRICE
+        result.count = search_pin_item.RVALUE
+        result.delivery_time = search_pin_item.DLVDT
+        result.warehouse_location = search_pin_item.KEYZAK
+        return result
 
 
 class UserVKorg(pydantic.BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='ignore')
 
     VKORG: str
     PROGRAM_NAME: str
 
 
-class ZA_TAB_Item(pydantic.BaseModel):
-    model_config = ConfigDict(extra='allow')
+class ZA_TABItem(pydantic.BaseModel):
+    model_config = ConfigDict(extra='ignore')
 
     KUNNR: str
     DEFAULT: int
@@ -125,8 +135,8 @@ class ZA_TAB_Item(pydantic.BaseModel):
     PHONE: str
 
 
-class CONTACT_TAB_Item(pydantic.BaseModel):
-    model_config = ConfigDict(extra='allow')
+class CONTACT_TABItem(pydantic.BaseModel):
+    model_config = ConfigDict(extra='ignore')
 
     PARNR: str
     DEFAULT: int
@@ -137,8 +147,8 @@ class CONTACT_TAB_Item(pydantic.BaseModel):
     EMAIL: str
 
 
-class RG_TAB_Item(pydantic.BaseModel):
-    model_config = ConfigDict(extra='allow')
+class RG_TABItem(pydantic.BaseModel):
+    model_config = ConfigDict(extra='ignore')
 
     KUNNR: str
     DEFAULT: int
@@ -146,12 +156,12 @@ class RG_TAB_Item(pydantic.BaseModel):
     FNAME: str
     ADRESS: str
     PHONE: str
-    ZA_TAB: list[ZA_TAB_Item]
-    CONTACT_TAB: list[CONTACT_TAB_Item]
+    ZA_TAB: list[ZA_TABItem]
+    CONTACT_TAB: list[CONTACT_TABItem]
 
 
 class User_STRUCTURE(pydantic.BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='ignore')
 
     KUNAG: str
     VKORG: str
@@ -159,7 +169,8 @@ class User_STRUCTURE(pydantic.BaseModel):
     FNAME: str
     ADRESS: str
     PHONE: str
-    RG_TAB: list[RG_TAB_Item]
+    RG_TAB: list[RG_TABItem]
+
 
 class ArmTekResponse(pydantic.BaseModel):
     STATUS: int
@@ -167,7 +178,7 @@ class ArmTekResponse(pydantic.BaseModel):
 
 
 class UserVKorgResponse(ArmTekResponse):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='ignore')
 
     RESP: list[UserVKorg]
 
@@ -177,8 +188,46 @@ class UserInfoResp(pydantic.BaseModel):
 
 
 class UserInfoResponse(ArmTekResponse):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='ignore')
 
     RESP: UserInfoResp
 
 
+class SearchPinItem(pydantic.BaseModel):
+    model_config = ConfigDict(extra='ignore', )
+
+    PIN: str | None = None
+    BRAND: str | None = None
+    NAME: str | None = None
+    ARTID: str | None = None
+    PARNR: str | None = None
+    KEYZAK: str | None = None
+    RVALUE: str | None = None
+    RETDAYS: str | None = None
+    RDPRF: str | None = None
+    MINBM: str | None = None
+    VENSL: str | None = None
+    PRICE: str | None = None
+    WAERS: str | None = None
+    DLVDT: str | None = None
+    WRNTDT: str | None = None
+    ANALOG: str | None = None
+    TYPEB: str | None = None
+    DSPEC: str | None = None
+    RCOST: str | None = None
+    MRKBY: str | None = None
+    PNOTE: str | None = None
+    IMP_ADD: str | None = None
+    SELLP: str | None = None
+    REST_ADD: str | None = None
+    REST_ADD_P: str | None = None
+
+
+class SearchPinMsg(pydantic.BaseModel):
+    MSG: str | None = None
+
+
+class SearchPinResponse(ArmTekResponse):
+    model_config = ConfigDict(extra='ignore')
+
+    RESP: list[SearchPinItem] | SearchPinMsg
