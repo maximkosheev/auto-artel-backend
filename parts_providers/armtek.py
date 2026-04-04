@@ -3,8 +3,8 @@ import os
 from json import JSONDecodeError
 
 import pydantic
-
 import requests
+from django.core.cache import cache
 from pydantic import ConfigDict
 
 from . import ProviderApiError
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 USER_VKORG_LIST_URL = 'http://ws.armtek.ru/api/ws_user/getUserVkorgList?format=json'
 USER_INFO_URL = 'http://ws.armtek.ru/api/ws_user/getUserInfo?format=json'
 SEARCH_URL = 'http://ws.armtek.ru/api/ws_search/search?format=json'
+STORE_URL = 'http://ws.armtek.ru/api/ws_user/getStoreList?format=json'
 
 
 class ArmTekProvider(AutoPartsProvider):
@@ -45,7 +46,7 @@ class ArmTekProvider(AutoPartsProvider):
                 self._vkorg = api_response.RESP[0].VKORG
                 return self._vkorg
             except pydantic.ValidationError as e:
-                logger.error(f"Unexpected response format: {e}")
+                logger.error(f"Unexpected response format: {e}", exc_info=True)
                 raise ProviderApiError('Ошибка обработки ответа от поставщика')
         else:
             logger.error(f"ArmTek response status: {response.status_code}, body: {response.json()}")
@@ -68,7 +69,7 @@ class ArmTekProvider(AutoPartsProvider):
                 self._userInfo = api_response.RESP.STRUCTURE
                 return self._userInfo
             except pydantic.ValidationError as e:
-                logger.error(f"Unexpected response format: {e}")
+                logger.error(f"Unexpected response format: {e}", exc_info=True)
                 raise ProviderApiError('Ошибка обработки ответа от поставщика')
         else:
             logger.error(f"ArmTek response status: {response.status_code}, body: {response.json()}")
@@ -96,10 +97,10 @@ class ArmTekProvider(AutoPartsProvider):
                 else:
                     return []
             except JSONDecodeError as ex:
-                logger.error(f"Parse error occurred: {ex}, when parsing data: {response.json()}")
+                logger.error(f"Parse error occurred: {ex}, when parsing data: {response.json()}", exc_info=True)
                 raise ProviderApiError('Ошибка запроса данных у поставщика')
             except Exception as e:
-                logger.error(f"Случилась ошибка: {e}")
+                logger.error(f"Случилась ошибка: {e}", exc_info=True)
                 raise ProviderApiError('Ошибка запроса данных у поставщика')
         else:
             logger.error(f"ArmTek response status: {response.status_code}, body: {response.json()}")
@@ -113,8 +114,12 @@ class ArmTekProvider(AutoPartsProvider):
         result.price = search_pin_item.PRICE
         result.count = search_pin_item.RVALUE
         result.delivery_time = search_pin_item.DLVDT
-        result.warehouse_location = search_pin_item.KEYZAK
+        result.warehouse_location = self.__map_warehouse_code(search_pin_item.KEYZAK)
         return result
+
+    def __map_warehouse_code(self, warehouse_code):
+        warehouse_data = WarehouseData.model_validate(cache.get(warehouse_code, {'SKLNAME': 'Неизвестный склад'}))
+        return warehouse_data.SKLNAME
 
 
 class UserVKorg(pydantic.BaseModel):
@@ -231,3 +236,10 @@ class SearchPinResponse(ArmTekResponse):
     model_config = ConfigDict(extra='ignore')
 
     RESP: list[SearchPinItem] | SearchPinMsg
+
+
+class WarehouseData(pydantic.BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    SKLNAME: str
+
