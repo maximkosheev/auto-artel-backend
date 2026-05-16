@@ -132,7 +132,6 @@ class ItemsSearchResult(ManagerMixin, View):
         try:
             service.init()
             results = service.search(article_number)
-            # results = []
             items_data = [
                 {
                     "article_number": item.article_number,

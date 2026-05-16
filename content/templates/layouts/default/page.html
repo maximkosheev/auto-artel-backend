@@ -10,7 +10,7 @@
 
     <link rel="icon" href="{% static 'favicon.ico' %}">
 
-    <title>The best service</title>
+    <title>{% block page-title %}{% endblock %}</title>
 
     {% bootstrap_css %}
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
