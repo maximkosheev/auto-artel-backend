@@ -103,7 +103,7 @@
             {% if message.reply_to is not None %}
             reply_to: {
                 id: {{ message.reply_to.id }},
-                text: '{{ message.reply_to.text }}'
+                text: '{{ message.reply_to.text|escapejs }}'
             },
             {% else %}
             reply_to: null,
