@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.views import generic, View
 from django.views.generic.edit import FormMixin
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render, redirect
 import logging
 from django.conf import settings
 
@@ -106,15 +106,23 @@ class OrderDetailView(ManagerMixin, OrderFormMixin, generic.UpdateView):
         return context
 
 
-class OrderItemsSearch(ManagerMixin, generic.TemplateView):
-    template_name = "orders/order_items_search.html"
+class PartsSearchView(ManagerMixin, View):
+    def get(self, request):
+        order_id = request.GET.get('order_id')
+        order = None
+        order_items = []
+        if order_id:
+            order = get_object_or_404(Order, pk=order_id)
+            order_items = order.order_item_list.all()
+        return render(request, 'orders/order_items_search.html', {
+            'order': order,
+            'order_items': order_items,
+        })
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        order = get_object_or_404(Order, pk=self.kwargs['pk'])
-        context['order'] = order
-        context['order_items'] = order.order_item_list.all()
-        return context
+
+class OrderItemsSearch(ManagerMixin, View):
+    def get(self, request, pk):
+        return redirect(reverse('orders:parts_search') + f'?order_id={pk}')
 
 
 items_search_logger = logging.getLogger("ItemsSearchResultView")
@@ -131,7 +139,36 @@ class ItemsSearchResult(ManagerMixin, View):
 
         try:
             service.init()
+            results = service.assortment_search(article_number)
+            items_data = [
+                {
+                    "article_number": item.article_number,
+                    "manufacture": item.manufacture,
+                    "name": item.name,
+                }
+                for item in results
+            ]
+            return JsonResponse({"items": items_data})
+        except ProviderApiError as ex:
+            items_search_logger.error(f"Provider error for order: {ex}")
+            return JsonResponse({"error": "Поставщик недоступен"}, status=502)
+
+
+class ItemsFullSearchResult(ManagerMixin, View):
+    def post(self, request):
+        article_number = request.POST.get('article_number', '').strip()
+        brand = request.POST.get('brand', '').strip()
+
+        if not article_number:
+            return JsonResponse({"error": "Article number is required."}, status=400)
+
+        service = settings.AUTO_PARTS_PROVIDERS["arm_teck"]["instance"]
+
+        try:
+            service.init()
             results = service.search(article_number)
+            if brand:
+                results = [r for r in results if r.manufacture == brand]
             items_data = [
                 {
                     "article_number": item.article_number,
@@ -146,7 +183,7 @@ class ItemsSearchResult(ManagerMixin, View):
             ]
             return JsonResponse({"items": items_data})
         except ProviderApiError as ex:
-            items_search_logger.error(f"Provider error for order: {ex}")
+            items_search_logger.error(f"Provider error: {ex}")
             return JsonResponse({"error": "Поставщик недоступен"}, status=502)
 
 

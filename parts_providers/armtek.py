@@ -8,13 +8,14 @@ from django.core.cache import cache
 from pydantic import ConfigDict
 
 from . import ProviderApiError
-from .parts_provider import AutoPartsProvider, SearchResultItem
+from .parts_provider import AutoPartsProvider, AssortmentSearchResultItem, SearchResultItem
 
 logger = logging.getLogger(__name__)
 
 USER_VKORG_LIST_URL = 'http://ws.armtek.ru/api/ws_user/getUserVkorgList?format=json'
 USER_INFO_URL = 'http://ws.armtek.ru/api/ws_user/getUserInfo?format=json'
 SEARCH_URL = 'http://ws.armtek.ru/api/ws_search/search?format=json'
+ASSORTMENT_SEARCH_URL = 'http://ws.armtek.ru/api/ws_search/assortment_search?format=json'
 STORE_URL = 'http://ws.armtek.ru/api/ws_user/getStoreList?format=json'
 
 
@@ -79,6 +80,37 @@ class ArmTekProvider(AutoPartsProvider):
     def buyer(self):
         return self.user_info.RG_TAB[0].KUNNR
 
+    def assortment_search(self, pin):
+        logger.debug(f"ArmTek assortment_search for pin: {pin}")
+        response = self.session.post(ASSORTMENT_SEARCH_URL, data={
+            'VKORG': self.vkorg,
+            'PIN': pin,
+        })
+        if response.status_code == 200:
+            try:
+                response_data = response.json()
+                logger.debug(f"ArmTek assortment_search response: {response_data}")
+                api_response = AssortmentSearchResponse.model_validate(response_data)
+                if isinstance(api_response.RESP, list):
+                    return [self.__map_assortment_item_to_result(item) for item in api_response.RESP]
+                return []
+            except JSONDecodeError as ex:
+                logger.error(f"Parse error occurred: {ex}, when parsing data: {response.text}", exc_info=True)
+                raise ProviderApiError('Ошибка обработки ответа от поставщика')
+            except pydantic.ValidationError as e:
+                logger.error(f"Unexpected response format: {e}", exc_info=True)
+                raise ProviderApiError('Ошибка обработки ответа от поставщика')
+        else:
+            logger.error(f"ArmTek response status: {response.status_code}, body: {response.text}")
+            raise ProviderApiError('Ошибка запроса данных у поставщика')
+
+    def __map_assortment_item_to_result(self, item):
+        result = AssortmentSearchResultItem()
+        result.article_number = item.PIN
+        result.manufacture = item.BRAND
+        result.name = item.NAME
+        return result
+
     def search(self, pin):
         logger.debug(f"ArmTek search for pin: {pin}")
         response = self.session.post(SEARCH_URL, data={
@@ -97,7 +129,7 @@ class ArmTekProvider(AutoPartsProvider):
                 else:
                     return []
             except JSONDecodeError as ex:
-                logger.error(f"Parse error occurred: {ex}, when parsing data: {response.json()}", exc_info=True)
+                logger.error(f"Parse error occurred: {ex}, when parsing data: {response.text}", exc_info=True)
                 raise ProviderApiError('Ошибка запроса данных у поставщика')
             except Exception as e:
                 logger.error(f"Случилась ошибка: {e}", exc_info=True)
@@ -242,4 +274,18 @@ class WarehouseData(pydantic.BaseModel):
     model_config = ConfigDict(extra='ignore')
 
     SKLNAME: str
+
+
+class AssortmentSearchItem(pydantic.BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    PIN: str | None = None
+    BRAND: str | None = None
+    NAME: str | None = None
+
+
+class AssortmentSearchResponse(ArmTekResponse):
+    model_config = ConfigDict(extra='ignore')
+
+    RESP: list[AssortmentSearchItem] | SearchPinMsg
 

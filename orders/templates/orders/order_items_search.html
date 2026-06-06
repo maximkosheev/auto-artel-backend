@@ -1,24 +1,28 @@
 {% extends 'orders/base.html' %}
 
-{% block page-title %}Поиск запчастей — Заказ #{{ order.id }}{% endblock %}
+{% block page-title %}
+  {% if order %}Поиск запчастей — Заказ #{{ order.id }}{% else %}Поиск запчастей{% endif %}
+{% endblock %}
 
 {% block orders_extra_content %}
 <div class="container-fluid py-4">
 
   {# ── Header ── #}
   <div class="d-flex align-items-center gap-3 mb-4">
+    {% if order %}
     <a href="{% url 'orders:detail' order.id %}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left"></i> К заказу
     </a>
+    {% endif %}
     <h4 class="mb-0">
       Поиск запчастей
-      <span class="text-muted fw-normal fs-6">— Заказ #{{ order.id }}</span>
+      {% if order %}<span class="text-muted fw-normal fs-6">— Заказ #{{ order.id }}</span>{% endif %}
     </h4>
   </div>
 
   <div class="row g-4">
 
-    <div class="col-12 col-xl-8">
+    <div class="{% if order %}col-12 col-xl-8{% else %}col-12{% endif %}">
 
       {# Search form #}
       <div class="card shadow-sm mb-4">
@@ -57,7 +61,7 @@
       {# Error alert #}
       <div id="searchError" class="alert alert-danger d-none" role="alert"></div>
 
-      {# Results table #}
+      {# Assortment results table #}
       <div id="resultsSection" class="d-none">
         <div class="card shadow-sm">
           <div class="card-header d-flex justify-content-between align-items-center">
@@ -68,6 +72,62 @@
             <small class="text-muted" id="searchedArticle"></small>
           </div>
           <div class="table-responsive">
+            <table class="table mb-0 align-middle" id="assortmentTable">
+              <thead class="table-dark">
+                <tr>
+                  <th>Артикул</th>
+                  <th>Производитель</th>
+                  <th>Наименование</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <style>
+        #assortmentTable tbody tr {
+          border-bottom: 1px solid #dee2e6;
+          cursor: pointer;
+          transition: background-color 0.15s ease;
+        }
+        #assortmentTable tbody tr:last-child {
+          border-bottom: none;
+        }
+        #assortmentTable tbody tr:hover td {
+          background-color: #cfe2ff;
+          color: #0a58ca;
+          text-decoration: underline;
+        }
+      </style>
+
+      {# Empty state — assortment #}
+      <div id="emptyState" class="text-center text-muted py-5 d-none">
+        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+        По данному артикулу ничего не найдено.
+      </div>
+
+      {# Full search results (shown after clicking a manufacturer row) #}
+      <div id="fullResultsSection" class="d-none">
+        <div class="card shadow-sm">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <button class="btn btn-sm btn-outline-secondary" id="backToAssortmentBtn">
+                <i class="bi bi-arrow-left"></i> Назад
+              </button>
+              <span class="fw-semibold">
+                Предложения
+                <span class="badge bg-secondary ms-1" id="fullResultCount">0</span>
+              </span>
+            </div>
+            <small class="text-muted" id="fullSearchedInfo"></small>
+          </div>
+          <div id="fullResultsLoading" class="text-center py-4 d-none">
+            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+            Загрузка предложений…
+          </div>
+          <div id="fullResultsTableWrap" class="table-responsive d-none">
             <table class="table table-hover table-bordered mb-0 align-middle">
               <thead class="table-dark">
                 <tr>
@@ -78,25 +138,23 @@
                   <th class="text-center">Кол-во</th>
                   <th>Срок доставки</th>
                   <th>Склад</th>
-                  <th class="text-center">Добавить</th>
+                  {% if order %}<th class="text-center">Добавить</th>{% endif %}
                 </tr>
               </thead>
-              <tbody id="resultsBody">
-              </tbody>
+              <tbody id="fullResultsBody"></tbody>
             </table>
+          </div>
+          <div id="fullEmptyState" class="text-center text-muted py-5 d-none">
+            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+            Предложений не найдено.
           </div>
         </div>
       </div>
 
-      {# Empty state #}
-      <div id="emptyState" class="text-center text-muted py-5 d-none">
-        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-        По данному артикулу ничего не найдено.
-      </div>
-
     </div>
 
-    {# Список уже добавленных в заказ позиций #}
+    {# Order items sidebar — only when linked to an order #}
+    {% if order %}
     <div class="col-12 col-xl-4">
       <div class="card shadow-sm" id="orderItemsCard">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -114,21 +172,23 @@
         </div>
       </div>
     </div>
+    {% endif %}
 
   </div>
 </div>
 
+{% if order %}
 {# Toast notification #}
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
   <div id="addToast" class="toast align-items-center text-bg-success border-0" role="alert">
     <div class="d-flex">
-      <div class="toast-body" id="toastMessage">
-        Позиция добавлена в заказ.
-      </div>
+      <div class="toast-body" id="toastMessage">Позиция добавлена в заказ.</div>
       <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
     </div>
   </div>
 </div>
+{% endif %}
+
 {% endblock orders_extra_content %}
 
 

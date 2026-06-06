@@ -48,7 +48,8 @@ INSTALLED_APPS = [
     'home',
     'api',
     'orders',
-    'chat'
+    'chat',
+    'parts_providers',
 ]
 
 MIDDLEWARE = [

@@ -1,6 +1,8 @@
-const SEARCH_URL = "{% url 'orders:items_search_results' %}";
-const ADD_URL    = "{% url 'orders:add_order_item' order.id %}";
-const CSRF_TOKEN = "{{ csrf_token }}";
+const SEARCH_URL      = "{% url 'orders:items_search_results' %}";
+const FULL_SEARCH_URL = "{% url 'orders:items_full_search_results' %}";
+const HAS_ORDER       = {% if order %}true{% else %}false{% endif %};
+const ADD_URL         = {% if order %}"{% url 'orders:add_order_item' order.id %}"{% else %}null{% endif %};
+const CSRF_TOKEN      = "{{ csrf_token }}";
 
 /* ── Helpers ── */
 function setSearchLoading(loading) {
@@ -23,10 +25,21 @@ function formatPrice(price) {
   return new Intl.NumberFormat("ru-RU", {style: "currency", currency: "RUB"}).format(price);
 }
 
-/* ── Search ── */
+function escHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function escAttr(str) {
+  return String(str ?? "").replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+}
+
+/* ── Assortment search (step 1) ── */
 document.getElementById("searchForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   hideError();
+  showAssortmentPhase();
 
   const articleNumber = document.getElementById("articleInput").value.trim();
   if (!articleNumber) return;
@@ -48,7 +61,7 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
       return;
     }
 
-    renderResults(data.items, articleNumber);
+    renderAssortmentResults(data.items, articleNumber);
   } catch (err) {
     showError("Сетевая ошибка. Попробуйте снова.");
   } finally {
@@ -56,7 +69,7 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
   }
 });
 
-function renderResults(items, articleNumber) {
+function renderAssortmentResults(items, articleNumber) {
   const body    = document.getElementById("resultsBody");
   const section = document.getElementById("resultsSection");
   const empty   = document.getElementById("emptyState");
@@ -72,23 +85,74 @@ function renderResults(items, articleNumber) {
   empty.classList.add("d-none");
   section.classList.remove("d-none");
 
-  document.getElementById("resultCount").textContent  = items.length;
+  document.getElementById("resultCount").textContent = items.length;
   document.getElementById("searchedArticle").textContent = `Артикул: ${articleNumber}`;
 
   items.forEach(item => {
     const tr = document.createElement("tr");
+    tr.dataset.pin   = item.article_number;
+    tr.dataset.brand = item.manufacture;
     tr.innerHTML = `
       <td><code>${escHtml(item.article_number)}</code></td>
       <td>${escHtml(item.manufacture)}</td>
       <td>${escHtml(item.name)}</td>
-      <td class="text-end text-nowrap">${formatPrice(item.price)}</td>
-      <td class="text-center">
-        <span class="badge ${item.count > 5 ? 'bg-success' : item.count > 0 ? 'bg-warning text-dark' : 'bg-danger'}">
-          ${item.count}
-        </span>
-      </td>
-      <td>${escHtml(item.delivery_time)}</td>
-      <td><small>${escHtml(item.warehouse_location)}</small></td>
+    `;
+    tr.addEventListener("click", handleAssortmentRowClick);
+    body.appendChild(tr);
+  });
+}
+
+/* ── Full search (step 2) ── */
+async function handleAssortmentRowClick(e) {
+  const tr    = e.currentTarget;
+  const pin   = tr.dataset.pin;
+  const brand = tr.dataset.brand;
+
+  showFullResultsPhase(pin, brand);
+
+  const formData = new FormData();
+  formData.append("article_number", pin);
+  formData.append("brand", brand);
+  formData.append("csrfmiddlewaretoken", CSRF_TOKEN);
+
+  try {
+    const resp = await fetch(FULL_SEARCH_URL, {method: "POST", body: formData});
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      showError(data.error || "Ошибка при обращении к поставщику.");
+      showAssortmentPhase();
+      return;
+    }
+
+    renderFullResults(data.items);
+  } catch (err) {
+    showError("Сетевая ошибка. Попробуйте снова.");
+    showAssortmentPhase();
+  }
+}
+
+function renderFullResults(items) {
+  const body      = document.getElementById("fullResultsBody");
+  const tableWrap = document.getElementById("fullResultsTableWrap");
+  const loading   = document.getElementById("fullResultsLoading");
+  const empty     = document.getElementById("fullEmptyState");
+
+  loading.classList.add("d-none");
+  body.innerHTML = "";
+
+  if (!items || items.length === 0) {
+    empty.classList.remove("d-none");
+    return;
+  }
+
+  document.getElementById("fullResultCount").textContent = items.length;
+  tableWrap.classList.remove("d-none");
+
+  items.forEach(item => {
+    const tr    = document.createElement("tr");
+    const count = parseInt(item.count) || 0;
+    const addCell = HAS_ORDER ? `
       <td class="text-center">
         <button
           class="btn btn-sm btn-outline-primary add-to-order-btn"
@@ -97,18 +161,59 @@ function renderResults(items, articleNumber) {
         >
           <i class="bi bi-cart-plus-fill"></i>
         </button>
+      </td>` : "";
+
+    tr.innerHTML = `
+      <td><code>${escHtml(item.article_number)}</code></td>
+      <td>${escHtml(item.manufacture)}</td>
+      <td>${escHtml(item.name)}</td>
+      <td class="text-end text-nowrap">${formatPrice(item.price)}</td>
+      <td class="text-center">
+        <span class="badge ${count > 5 ? 'bg-success' : count > 0 ? 'bg-warning text-dark' : 'bg-danger'}">
+          ${count}
+        </span>
       </td>
+      <td>${escHtml(item.delivery_time)}</td>
+      <td><small>${escHtml(item.warehouse_location)}</small></td>
+      ${addCell}
     `;
     body.appendChild(tr);
   });
 
-  /* Attach listeners to new buttons */
-  body.querySelectorAll(".add-to-order-btn").forEach(btn => {
-    btn.addEventListener("click", handleAddToOrder);
-  });
+  if (HAS_ORDER) {
+    body.querySelectorAll(".add-to-order-btn").forEach(btn => {
+      btn.addEventListener("click", handleAddToOrder);
+    });
+  }
 }
 
-/* ── Add to order ── */
+/* ── Phase transitions ── */
+function showAssortmentPhase() {
+  document.getElementById("fullResultsSection").classList.add("d-none");
+  document.getElementById("fullResultsLoading").classList.add("d-none");
+  document.getElementById("fullResultsTableWrap").classList.add("d-none");
+  document.getElementById("fullEmptyState").classList.add("d-none");
+}
+
+function showFullResultsPhase(pin, brand) {
+  document.getElementById("resultsSection").classList.add("d-none");
+  document.getElementById("emptyState").classList.add("d-none");
+
+  document.getElementById("fullResultsSection").classList.remove("d-none");
+  document.getElementById("fullResultsLoading").classList.remove("d-none");
+  document.getElementById("fullResultsTableWrap").classList.add("d-none");
+  document.getElementById("fullEmptyState").classList.add("d-none");
+  document.getElementById("fullResultCount").textContent = "0";
+  document.getElementById("fullSearchedInfo").textContent = `${brand} · ${pin}`;
+}
+
+document.getElementById("backToAssortmentBtn").addEventListener("click", () => {
+  hideError();
+  showAssortmentPhase();
+  document.getElementById("resultsSection").classList.remove("d-none");
+});
+
+/* ── Add to order (only when HAS_ORDER) ── */
 async function handleAddToOrder(e) {
   const btn  = e.currentTarget;
   const item = JSON.parse(btn.dataset.item);
@@ -119,10 +224,7 @@ async function handleAddToOrder(e) {
   try {
     const resp = await fetch(ADD_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": CSRF_TOKEN,
-      },
+      headers: {"Content-Type": "application/json", "X-CSRFToken": CSRF_TOKEN},
       body: JSON.stringify(item),
     });
 
@@ -130,12 +232,13 @@ async function handleAddToOrder(e) {
 
     if (!resp.ok) {
       alert(data.error || "Не удалось добавить позицию.");
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-cart-plus-fill"></i>';
       return;
     }
 
     btn.classList.replace("btn-outline-primary", "btn-success");
     btn.innerHTML = '<i class="bi bi-check-lg"></i>';
-
     appendOrderItem(data.item);
     showToast(`«${item.name}» добавлен в заказ.`);
   } catch (err) {
@@ -150,7 +253,6 @@ function appendOrderItem(item) {
   const list  = document.getElementById("orderItemsList");
   const badge = document.getElementById("orderItemCount");
 
-  /* Remove "empty" placeholder if present */
   const emptyEl = document.getElementById("emptyOrderItems");
   if (emptyEl) emptyEl.remove();
 
@@ -169,23 +271,11 @@ function appendOrderItem(item) {
     </div>
   `;
   list.appendChild(div);
-
   badge.textContent = parseInt(badge.textContent || "0") + 1;
 }
 
 /* ── Toast ── */
 function showToast(msg) {
   document.getElementById("toastMessage").textContent = msg;
-  const toastEl = document.getElementById("addToast");
-  bootstrap.Toast.getOrCreateInstance(toastEl, {delay: 3000}).show();
-}
-
-/* ── XSS helpers ── */
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-function escAttr(str) {
-  return String(str).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+  bootstrap.Toast.getOrCreateInstance(document.getElementById("addToast"), {delay: 3000}).show();
 }
