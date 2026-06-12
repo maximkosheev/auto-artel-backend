@@ -1,4 +1,4 @@
-const SEARCH_URL      = "{% url 'orders:items_search_results' %}";
+const ASSORTMENT_SEARCH_URL      = "{% url 'orders:assortment_search_results' %}";
 const FULL_SEARCH_URL = "{% url 'orders:items_full_search_results' %}";
 const HAS_ORDER       = {% if order %}true{% else %}false{% endif %};
 const ADD_URL         = {% if order %}"{% url 'orders:add_order_item' order.id %}"{% else %}null{% endif %};
@@ -51,7 +51,7 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
   formData.append("csrfmiddlewaretoken", CSRF_TOKEN);
 
   try {
-    const resp = await fetch(SEARCH_URL, {method: "POST", body: formData});
+    const resp = await fetch(ASSORTMENT_SEARCH_URL, {method: "POST", body: formData});
     const data = await resp.json();
 
     if (!resp.ok) {
@@ -91,7 +91,7 @@ function renderAssortmentResults(items, articleNumber) {
   items.forEach(item => {
     const tr = document.createElement("tr");
     tr.dataset.pin   = item.article_number;
-    tr.dataset.brand = item.manufacture;
+    tr.dataset.manufacture = item.manufacture;
     tr.innerHTML = `
       <td><code>${escHtml(item.article_number)}</code></td>
       <td>${escHtml(item.manufacture)}</td>
@@ -106,13 +106,13 @@ function renderAssortmentResults(items, articleNumber) {
 async function handleAssortmentRowClick(e) {
   const tr    = e.currentTarget;
   const pin   = tr.dataset.pin;
-  const brand = tr.dataset.brand;
+  const manufacture = tr.dataset.manufacture;
 
-  showFullResultsPhase(pin, brand);
+  showFullResultsPhase(pin, manufacture);
 
   const formData = new FormData();
   formData.append("article_number", pin);
-  formData.append("brand", brand);
+  formData.append("manufacture", manufacture);
   formData.append("csrfmiddlewaretoken", CSRF_TOKEN);
 
   try {
@@ -125,14 +125,14 @@ async function handleAssortmentRowClick(e) {
       return;
     }
 
-    renderFullResults(data.items);
+    renderFullResults(data.items, manufacture);
   } catch (err) {
     showError("Сетевая ошибка. Попробуйте снова.");
     showAssortmentPhase();
   }
 }
 
-function renderFullResults(items) {
+function renderFullResults(items, manufacture) {
   const body      = document.getElementById("fullResultsBody");
   const tableWrap = document.getElementById("fullResultsTableWrap");
   const loading   = document.getElementById("fullResultsLoading");
@@ -149,42 +149,66 @@ function renderFullResults(items) {
   document.getElementById("fullResultCount").textContent = items.length;
   tableWrap.classList.remove("d-none");
 
-  items.forEach(item => {
-    const tr    = document.createElement("tr");
-    const count = parseInt(item.count) || 0;
-    const addCell = HAS_ORDER ? `
-      <td class="text-center">
-        <button
-          class="btn btn-sm btn-outline-primary add-to-order-btn"
-          title="Добавить в заказ"
-          data-item='${escAttr(JSON.stringify(item))}'
-        >
-          <i class="bi bi-cart-plus-fill"></i>
-        </button>
-      </td>` : "";
+  const colSpan   = HAS_ORDER ? 8 : 7;
+  const matched   = items.filter(i => i.manufacture === manufacture);
+  const analogs   = items.filter(i => i.manufacture !== manufacture);
 
-    tr.innerHTML = `
-      <td><code>${escHtml(item.article_number)}</code></td>
-      <td>${escHtml(item.manufacture)}</td>
-      <td>${escHtml(item.name)}</td>
-      <td class="text-end text-nowrap">${formatPrice(item.price)}</td>
-      <td class="text-center">
-        <span class="badge ${count > 5 ? 'bg-success' : count > 0 ? 'bg-warning text-dark' : 'bg-danger'}">
-          ${count}
-        </span>
-      </td>
-      <td>${escHtml(item.delivery_time)}</td>
-      <td><small>${escHtml(item.warehouse_location)}</small></td>
-      ${addCell}
-    `;
-    body.appendChild(tr);
-  });
+  if (matched.length > 0) {
+    appendGroupHeader(body, escHtml(manufacture), colSpan);
+    matched.forEach(item => appendResultRow(body, item));
+  }
+
+  if (analogs.length > 0) {
+    appendGroupHeader(body, "Аналоги", colSpan);
+    analogs.forEach(item => appendResultRow(body, item));
+  }
 
   if (HAS_ORDER) {
     body.querySelectorAll(".add-to-order-btn").forEach(btn => {
       btn.addEventListener("click", handleAddToOrder);
     });
   }
+}
+
+function appendGroupHeader(tbody, label, colSpan) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td colspan="${colSpan}" class="fw-semibold text-secondary small px-3 py-2"
+        style="background:#f8f9fa; border-top: 2px solid #dee2e6; letter-spacing:.03em;">
+      ${label}
+    </td>`;
+  tbody.appendChild(tr);
+}
+
+function appendResultRow(tbody, item) {
+  const tr    = document.createElement("tr");
+  const count = parseInt(item.count) || 0;
+  const addCell = HAS_ORDER ? `
+    <td class="text-center">
+      <button
+        class="btn btn-sm btn-outline-primary add-to-order-btn"
+        title="Добавить в заказ"
+        data-item='${escAttr(JSON.stringify(item))}'
+      >
+        <i class="bi bi-cart-plus-fill"></i>
+      </button>
+    </td>` : "";
+
+  tr.innerHTML = `
+    <td><code>${escHtml(item.article_number)}</code></td>
+    <td>${escHtml(item.manufacture)}</td>
+    <td>${escHtml(item.name)}</td>
+    <td class="text-end text-nowrap">${formatPrice(item.price)}</td>
+    <td class="text-center">
+      <span class="badge ${count > 5 ? 'bg-success' : count > 0 ? 'bg-warning text-dark' : 'bg-danger'}">
+        ${count}
+      </span>
+    </td>
+    <td>${escHtml(item.delivery_time)}</td>
+    <td><small>${escHtml(item.warehouse_location)}</small></td>
+    ${addCell}
+  `;
+  tbody.appendChild(tr);
 }
 
 /* ── Phase transitions ── */
@@ -195,7 +219,7 @@ function showAssortmentPhase() {
   document.getElementById("fullEmptyState").classList.add("d-none");
 }
 
-function showFullResultsPhase(pin, brand) {
+function showFullResultsPhase(pin, manufacture) {
   document.getElementById("resultsSection").classList.add("d-none");
   document.getElementById("emptyState").classList.add("d-none");
 
@@ -204,7 +228,7 @@ function showFullResultsPhase(pin, brand) {
   document.getElementById("fullResultsTableWrap").classList.add("d-none");
   document.getElementById("fullEmptyState").classList.add("d-none");
   document.getElementById("fullResultCount").textContent = "0";
-  document.getElementById("fullSearchedInfo").textContent = `${brand} · ${pin}`;
+  document.getElementById("fullSearchedInfo").textContent = `${manufacture} · ${pin}`;
 }
 
 document.getElementById("backToAssortmentBtn").addEventListener("click", () => {

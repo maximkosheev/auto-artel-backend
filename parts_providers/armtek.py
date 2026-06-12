@@ -6,6 +6,7 @@ import pydantic
 import requests
 from django.core.cache import cache
 from pydantic import ConfigDict
+from datetime import datetime
 
 from . import ProviderApiError
 from .parts_provider import AutoPartsProvider, AssortmentSearchResultItem, SearchResultItem
@@ -111,16 +112,19 @@ class ArmTekProvider(AutoPartsProvider):
         result.name = item.NAME
         return result
 
-    def search(self, pin):
-        logger.debug(f"ArmTek search for pin: {pin}")
+    def search(self, pin, manufacture):
+        logger.debug(f"ArmTek search for pin: {pin}, manufacture: {manufacture}")
         response = self.session.post(SEARCH_URL, data={
             'VKORG': self.vkorg,
             'KUNNR_RG': self.buyer,
-            'PIN': pin
+            'PIN': pin,
+            'BRAND': manufacture,
+            'QUERY_TYPE': '2'
         })
         if response.status_code == 200:
             try:
                 response_data = response.json()
+                logger.debug(f"ArmTek search response: {response_data}")
                 api_response = SearchPinResponse.model_validate(response_data)
                 if type(api_response.RESP) is list:
                     return list(map(lambda RESP_Item:
@@ -145,7 +149,8 @@ class ArmTekProvider(AutoPartsProvider):
         result.name = search_pin_item.NAME
         result.price = search_pin_item.PRICE
         result.count = search_pin_item.RVALUE
-        result.delivery_time = search_pin_item.DLVDT
+        if search_pin_item.DLVDT:
+            result.delivery_time = datetime.strptime(search_pin_item.DLVDT, '%Y%m%d%H%M%S')
         result.warehouse_location = self.__map_warehouse_code(search_pin_item.KEYZAK)
         return result
 

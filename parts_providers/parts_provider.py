@@ -16,10 +16,11 @@ class AutoPartsProvider(ABC):
         pass
 
     @abstractmethod
-    def search(self, pin):
+    def search(self, pin, manufacture):
         """
         Выполняет поиск запчасти по её артиклю
         @param pin: артикул
+        @param manufacture: производитель
         @return список SearchResultItem
         """
     pass

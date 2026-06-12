@@ -120,7 +120,7 @@ class PartsSearchView(ManagerMixin, View):
         })
 
 
-class OrderItemsSearch(ManagerMixin, View):
+class OrderItemSearch(ManagerMixin, View):
     def get(self, request, pk):
         return redirect(reverse('orders:parts_search') + f'?order_id={pk}')
 
@@ -128,7 +128,7 @@ class OrderItemsSearch(ManagerMixin, View):
 items_search_logger = logging.getLogger("ItemsSearchResultView")
 
 
-class ItemsSearchResult(ManagerMixin, View):
+class AssortmentSearchResult(ManagerMixin, View):
     def post(self, request):
         article_number = request.POST.get('article_number', '').strip()
 
@@ -157,7 +157,7 @@ class ItemsSearchResult(ManagerMixin, View):
 class ItemsFullSearchResult(ManagerMixin, View):
     def post(self, request):
         article_number = request.POST.get('article_number', '').strip()
-        brand = request.POST.get('brand', '').strip()
+        manufacture = request.POST.get('manufacture', '').strip()
 
         if not article_number:
             return JsonResponse({"error": "Article number is required."}, status=400)
@@ -166,9 +166,9 @@ class ItemsFullSearchResult(ManagerMixin, View):
 
         try:
             service.init()
-            results = service.search(article_number)
-            if brand:
-                results = [r for r in results if r.manufacture == brand]
+            results = service.search(article_number, manufacture)
+            if manufacture:
+                results = sorted(results, key=lambda r: 0 if r.manufacture == manufacture else 1)
             items_data = [
                 {
                     "article_number": item.article_number,
@@ -176,7 +176,7 @@ class ItemsFullSearchResult(ManagerMixin, View):
                     "name": item.name,
                     "price": item.price,
                     "count": item.count,
-                    "delivery_time": item.delivery_time,
+                    "delivery_time": item.delivery_time.strftime("%Y-%m-%d %H:%M") if item.delivery_time else None,
                     "warehouse_location": item.warehouse_location,
                 }
                 for item in results
@@ -187,7 +187,7 @@ class ItemsFullSearchResult(ManagerMixin, View):
             return JsonResponse({"error": "Поставщик недоступен"}, status=502)
 
 
-class AddOrderItem(ManagerMixin, View):
+class OrderItemAdd(ManagerMixin, View):
     def post(self, request, pk):
         order = get_object_or_404(Order, pk=pk)
 
