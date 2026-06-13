@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
@@ -12,6 +13,7 @@ import logging
 from django.conf import settings
 
 from parts_providers import ProviderApiError
+from utils.date_utils import parse_date
 from .forms import OrderForm, OrderNewForm, OrderItemFormSet
 from .models import Order, Manager, OrderItem
 
@@ -135,7 +137,7 @@ class AssortmentSearchResult(ManagerMixin, View):
         if len(article_number) == 0:
             return JsonResponse({"error": "Article number is required."}, status=400)
 
-        service = settings.AUTO_PARTS_PROVIDERS["arm_teck"]["instance"]
+        service = settings.AUTO_PARTS_PROVIDERS["armtek"]["instance"]
 
         try:
             service.init()
@@ -162,7 +164,7 @@ class ItemsFullSearchResult(ManagerMixin, View):
         if not article_number:
             return JsonResponse({"error": "Article number is required."}, status=400)
 
-        service = settings.AUTO_PARTS_PROVIDERS["arm_teck"]["instance"]
+        service = settings.AUTO_PARTS_PROVIDERS["armtek"]["instance"]
 
         try:
             service.init()
@@ -199,14 +201,33 @@ class OrderItemAdd(ManagerMixin, View):
         article_number = data.get("article_number", "").strip()
         manufacture = data.get("manufacture", "").strip()
         name = data.get("name", "").strip()
-        price = data.get("price")
+        provider = data.get("provider", "armtek")
+        try:
+            purchase_price = Decimal(str(data.get("price")))
+        except (InvalidOperation, TypeError):
+            return JsonResponse({"error": "Invalid price value."}, status=400)
+        delivery_dt = parse_date(data.get("delivery_time"), '%Y-%m-%d %H:%M')
+        warehouse = data.get("warehouse_location")
+        try:
+            count = max(1, int(data.get("count", 1)))
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "Invalid count value."}, status=400)
+        discount = 0
+        price = self.calc_final_price(purchase_price, count, discount, 30)
 
         order_item = OrderItem.objects.create(
             order=order,
             article_number=article_number,
             manufacture=manufacture,
             name=name,
-            price=price)
+            provider=provider,
+            delivery_dt=delivery_dt,
+            warehouse=warehouse,
+            purchase_price=purchase_price,
+            count=count,
+            discount=discount,
+            price=price
+        )
 
         if not article_number:
             return JsonResponse({"error": "article_number is required."}, status=400)
@@ -218,6 +239,20 @@ class OrderItemAdd(ManagerMixin, View):
                 "article_number": order_item.article_number,
                 "manufacture": order_item.manufacture,
                 "name": order_item.name,
+                "count": order_item.count,
                 "price": str(order_item.price),
             },
         }, status=201)
+
+    def calc_final_price(self, purchase_price, count, discount, extra):
+        purchase_cost = purchase_price * count
+        extra_cost = purchase_cost * extra / 100
+        extra_with_discount = extra_cost * (100 - discount) / 100
+        return purchase_cost + extra_with_discount
+
+
+class OrderItemRemove(ManagerMixin, View):
+    def delete(self, request, item_pk):
+        item = get_object_or_404(OrderItem, pk=item_pk)
+        item.delete()
+        return JsonResponse({"success": True})

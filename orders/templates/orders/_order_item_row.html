@@ -1,17 +1,22 @@
 {# Reusable partial: single order item in the right-side list #}
-<div class="list-group-item list-group-item-action py-2 px-3">
-  <div class="d-flex justify-content-between align-items-start">
-    <div>
-      <div class="fw-semibold small">{{ item.name|default:"—" }}</div>
+<div class="list-group-item py-2 px-3" data-item-id="{{ item.id }}">
+  <div class="d-flex justify-content-between align-items-start gap-2">
+    <div class="flex-grow-1 overflow-hidden">
+      <div class="fw-semibold small text-truncate">{{ item.name|default:"—" }}</div>
       <div class="text-muted" style="font-size:.75rem">
         <code>{{ item.article_number|default:"—" }}</code>
         {% if item.manufacture %}&nbsp;·&nbsp;{{ item.manufacture }}{% endif %}
+        {% if item.count > 1 %}&nbsp;·&nbsp;{{ item.count }}&nbsp;шт.{% endif %}
       </div>
     </div>
-    {% if item.price %}
-      <span class="badge bg-primary ms-2 text-nowrap">
-        {{ item.price }} ₽
-      </span>
-    {% endif %}
+    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+      {% if item.price %}
+        <span class="badge bg-primary text-nowrap">{{ item.price }}&nbsp;₽</span>
+      {% endif %}
+      <button class="btn btn-sm btn-outline-danger remove-order-item-btn p-1 lh-1"
+              title="Удалить" data-item-id="{{ item.id }}" style="line-height:1">
+        <i class="bi bi-x-lg" style="font-size:.7rem"></i>
+      </button>
+    </div>
   </div>
 </div>

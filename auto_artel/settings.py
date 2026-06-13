@@ -179,8 +179,8 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 
 AUTO_PARTS_PROVIDERS = {
-    'arm_teck': {
-        'name': 'ARMTECK',
+    'armtek': {
+        'name': 'ARMTEK',
         'instance': ArmTekProvider(),
         'enabled': True
     }
