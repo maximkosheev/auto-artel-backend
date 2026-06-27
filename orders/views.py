@@ -174,6 +174,7 @@ class ItemsFullSearchResult(ManagerMixin, View):
             items_data = [
                 {
                     "article_number": item.article_number,
+                    "internal_art_id": item.internal_art_id,
                     "manufacture": item.manufacture,
                     "name": item.name,
                     "price": item.price,
@@ -199,6 +200,7 @@ class OrderItemAdd(ManagerMixin, View):
             return JsonResponse({"error": "Invalid JSON"}, 400)
 
         article_number = data.get("article_number", "").strip()
+        internal_art_id = data.get("internal_art_id", "").strip()
         manufacture = data.get("manufacture", "").strip()
         name = data.get("name", "").strip()
         provider = data.get("provider", "armtek")
@@ -215,9 +217,10 @@ class OrderItemAdd(ManagerMixin, View):
         discount = 0
         price = self.calc_final_price(purchase_price, count, discount, 30)
 
-        order_item = OrderItem.objects.create(
+        order_item = self.insert_or_update(
             order=order,
             article_number=article_number,
+            internal_id=internal_art_id,
             manufacture=manufacture,
             name=name,
             provider=provider,
@@ -249,6 +252,37 @@ class OrderItemAdd(ManagerMixin, View):
         extra_cost = purchase_cost * extra / 100
         extra_with_discount = extra_cost * (100 - discount) / 100
         return purchase_cost + extra_with_discount
+
+    def insert_or_update(self, order, article_number, internal_id, manufacture, name, provider, delivery_dt, warehouse,
+                         purchase_price, count, discount, price):
+
+        item = OrderItem.objects.filter(
+            order=order,
+            article_number=article_number,
+            internal_id=internal_id
+        ).first()
+
+        if item:
+            item.count += count
+            item.price += price
+            item.save()
+        else:
+            item = OrderItem.objects.create(
+                order=order,
+                article_number=article_number,
+                internal_id=internal_id,
+                manufacture=manufacture,
+                name=name,
+                provider=provider,
+                delivery_dt=delivery_dt,
+                warehouse=warehouse,
+                purchase_price=purchase_price,
+                count=count,
+                discount=discount,
+                price=price
+            )
+
+        return item
 
 
 class OrderItemRemove(ManagerMixin, View):

@@ -28,7 +28,7 @@
 
   <div class="row g-4">
 
-    <div class="{% if order %}col-12 col-xl-8{% else %}col-12{% endif %}">
+    <div class="col-12">
 
       {# Search form #}
       <div class="card shadow-sm mb-4">
@@ -143,41 +143,10 @@
 
     </div>
 
-    {# Order items sidebar — only when linked to an order #}
-    {% if order %}
-    <div class="col-12 col-xl-4">
-      <div class="card shadow-sm" id="orderItemsCard">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <span class="fw-semibold">Позиции заказа</span>
-          <span class="badge bg-primary" id="orderItemCount">{{ order.order_item_list.count }}</span>
-        </div>
-        <div class="list-group list-group-flush" id="orderItemsList" style="max-height: 600px; overflow-y: auto;">
-          {% for item in order_items %}
-            {% include "orders/_order_item_row.html" with item=item %}
-          {% empty %}
-            <div class="list-group-item text-muted text-center py-3" id="emptyOrderItems">
-              <i class="bi bi-cart-x me-1"></i> Позиций пока нет
-            </div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-    {% endif %}
 
   </div>
 </div>
 
-{% if order %}
-{# Toast notification #}
-<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
-  <div id="addToast" class="toast align-items-center text-bg-success border-0" role="alert">
-    <div class="d-flex">
-      <div class="toast-body" id="toastMessage">Позиция добавлена в заказ.</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-    </div>
-  </div>
-</div>
-{% endif %}
 
 {% endblock orders_extra_content %}
 

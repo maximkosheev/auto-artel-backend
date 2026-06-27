@@ -144,7 +144,8 @@ class ArmTekProvider(AutoPartsProvider):
 
     def __map_search_pin_item_to_search_result_item(self, search_pin_item):
         result = SearchResultItem()
-        result.article_number = search_pin_item.ARTID
+        result.internal_art_id = search_pin_item.ARTID
+        result.article_number = search_pin_item.PIN
         result.manufacture = search_pin_item.BRAND
         result.name = search_pin_item.NAME
         result.price = search_pin_item.PRICE

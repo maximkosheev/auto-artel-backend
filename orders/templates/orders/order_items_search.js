@@ -1,9 +1,10 @@
+{% load static %}
 const ASSORTMENT_SEARCH_URL      = "{% url 'orders:assortment_search_results' %}";
 const FULL_SEARCH_URL = "{% url 'orders:items_full_search_results' %}";
 const HAS_ORDER       = {% if order %}true{% else %}false{% endif %};
 const ADD_URL         = {% if order %}"{% url 'orders:add_order_item' order.id %}"{% else %}null{% endif %};
-const REMOVE_URL      = {% if order %}(id) => `/orders/items/${id}/remove`{% else %}null{% endif %};
 const CSRF_TOKEN      = "{{ csrf_token }}";
+const CART_ICON_URL   = "{% static 'images/shopping_cart.svg' %}";
 
 /* ── Helpers ── */
 function setSearchLoading(loading) {
@@ -180,13 +181,17 @@ function appendResultRow(tbody, item) {
   const count = parseInt(item.count) || 0;
   const addCell = HAS_ORDER ? `
     <td class="text-center align-middle" data-add-cell>
-      <button
-        class="btn btn-sm btn-outline-primary add-to-order-btn"
-        title="Добавить в заказ"
-        data-item='${escAttr(JSON.stringify(item))}'
-      >
-        <i class="bi bi-cart-plus-fill"></i>
-      </button>
+      <div class="d-flex align-items-center gap-1 justify-content-center">
+        <input type="number" class="form-control form-control-sm qty-input"
+               min="1" value="1" style="width:4rem">
+        <button
+          class="btn btn-sm btn-primary add-to-order-btn"
+          title="Добавить в заказ"
+          data-item='${escAttr(JSON.stringify(item))}'
+        >
+          <img src="${CART_ICON_URL}" width="18" height="18" alt="Добавить в заказ">
+        </button>
+      </div>
     </td>` : "";
 
   tr.innerHTML = `
@@ -205,72 +210,53 @@ function appendResultRow(tbody, item) {
   `;
 
   if (HAS_ORDER) {
+    const cell = tr.querySelector("[data-add-cell]");
     tr.querySelector(".add-to-order-btn").addEventListener("click", (e) => {
-      const cell = e.currentTarget.closest("td");
+      const qty = Math.max(1, parseInt(cell.querySelector(".qty-input").value) || 1);
       const itemData = JSON.parse(e.currentTarget.dataset.item);
-      showQtySelector(cell, itemData);
+      handleAddToOrder(itemData, qty, cell);
+    });
+    tr.querySelector(".qty-input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const qty = Math.max(1, parseInt(e.currentTarget.value) || 1);
+        handleAddToOrder(item, qty, cell);
+      }
     });
   }
 
   tbody.appendChild(tr);
 }
 
-/* ── Quantity selector ── */
-function showQtySelector(cell, item) {
+/* ── Add to order ── */
+function renderAddCell(cell, item) {
   cell.innerHTML = `
     <div class="d-flex align-items-center gap-1 justify-content-center">
       <input type="number" class="form-control form-control-sm qty-input"
              min="1" value="1" style="width:4rem">
-      <button class="btn btn-sm btn-success qty-confirm-btn" title="Добавить">
-        <i class="bi bi-check-lg"></i>
-      </button>
-      <button class="btn btn-sm btn-outline-secondary qty-cancel-btn" title="Отмена">
-        <i class="bi bi-x-lg"></i>
+      <button
+        class="btn btn-sm btn-primary add-to-order-btn"
+        title="Добавить в заказ"
+        data-item='${escAttr(JSON.stringify(item))}'
+      >
+        <img src="${CART_ICON_URL}" width="18" height="18" alt="Добавить в заказ">
       </button>
     </div>
   `;
-
-  const input = cell.querySelector(".qty-input");
-  input.focus();
-  input.select();
-
-  cell.querySelector(".qty-confirm-btn").addEventListener("click", () => {
-    const qty = Math.max(1, parseInt(input.value) || 1);
-    handleAddToOrder(item, qty, cell);
+  cell.querySelector(".add-to-order-btn").addEventListener("click", (e) => {
+    const qty = Math.max(1, parseInt(cell.querySelector(".qty-input").value) || 1);
+    const itemData = JSON.parse(e.currentTarget.dataset.item);
+    handleAddToOrder(itemData, qty, cell);
   });
-
-  cell.querySelector(".qty-cancel-btn").addEventListener("click", () => {
-    restoreCartButton(cell, item);
-  });
-
-  input.addEventListener("keydown", (e) => {
+  cell.querySelector(".qty-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-      const qty = Math.max(1, parseInt(input.value) || 1);
+      const qty = Math.max(1, parseInt(e.currentTarget.value) || 1);
       handleAddToOrder(item, qty, cell);
-    } else if (e.key === "Escape") {
-      restoreCartButton(cell, item);
     }
   });
 }
 
-function restoreCartButton(cell, item) {
-  cell.innerHTML = `
-    <button
-      class="btn btn-sm btn-outline-primary add-to-order-btn"
-      title="Добавить в заказ"
-      data-item='${escAttr(JSON.stringify(item))}'
-    >
-      <i class="bi bi-cart-plus-fill"></i>
-    </button>
-  `;
-  cell.querySelector(".add-to-order-btn").addEventListener("click", (e) => {
-    const itemData = JSON.parse(e.currentTarget.dataset.item);
-    showQtySelector(cell, itemData);
-  });
-}
-
-/* ── Add to order ── */
 async function handleAddToOrder(item, count, cell) {
+  const originalHTML = cell.innerHTML;
   cell.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
   try {
@@ -284,114 +270,18 @@ async function handleAddToOrder(item, count, cell) {
 
     if (!resp.ok) {
       alert(data.error || "Не удалось добавить позицию.");
-      restoreCartButton(cell, item);
+      renderAddCell(cell, item);
       return;
     }
 
     cell.innerHTML = `<span class="text-success fw-semibold"><i class="bi bi-check-lg"></i> ${count}&nbsp;шт.</span>`;
-    appendOrderItem(data.item);
-    showToast(`«${item.name}» добавлен в заказ.`);
+    setTimeout(() => renderAddCell(cell, item), 1500);
   } catch (err) {
     alert("Сетевая ошибка.");
-    restoreCartButton(cell, item);
+    renderAddCell(cell, item);
   }
 }
 
-/* ── Order items sidebar ── */
-function appendOrderItem(item) {
-  const list  = document.getElementById("orderItemsList");
-  const badge = document.getElementById("orderItemCount");
-
-  const emptyEl = document.getElementById("emptyOrderItems");
-  if (emptyEl) emptyEl.remove();
-
-  const div = document.createElement("div");
-  div.className = "list-group-item py-2 px-3";
-  div.dataset.itemId = item.id;
-
-  const countHtml = item.count > 1
-    ? `&nbsp;·&nbsp;${item.count}&nbsp;шт.`
-    : "";
-
-  div.innerHTML = `
-    <div class="d-flex justify-content-between align-items-start gap-2">
-      <div class="flex-grow-1 overflow-hidden">
-        <div class="fw-semibold small text-truncate">${escHtml(item.name)}</div>
-        <div class="text-muted" style="font-size:.75rem">
-          <code>${escHtml(item.article_number)}</code>
-          &nbsp;·&nbsp;${escHtml(item.manufacture)}${countHtml}
-        </div>
-      </div>
-      <div class="d-flex align-items-center gap-1 flex-shrink-0">
-        <span class="badge bg-primary text-nowrap">${formatPrice(item.price)}</span>
-        <button class="btn btn-sm btn-outline-danger remove-order-item-btn p-1 lh-1"
-                title="Удалить" data-item-id="${item.id}" style="line-height:1">
-          <i class="bi bi-x-lg" style="font-size:.7rem"></i>
-        </button>
-      </div>
-    </div>
-  `;
-
-  list.appendChild(div);
-  badge.textContent = parseInt(badge.textContent || "0") + 1;
-}
-
-/* ── Remove order item ── */
-async function handleRemoveOrderItem(itemId, rowEl) {
-  const btn = rowEl.querySelector(".remove-order-item-btn");
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-  }
-
-  try {
-    const resp = await fetch(REMOVE_URL(itemId), {
-      method: "DELETE",
-      headers: {"X-CSRFToken": CSRF_TOKEN},
-    });
-
-    if (!resp.ok) {
-      const data = await resp.json().catch(() => ({}));
-      alert(data.error || "Не удалось удалить позицию.");
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-x-lg" style="font-size:.7rem"></i>';
-      }
-      return;
-    }
-
-    rowEl.remove();
-    const badge = document.getElementById("orderItemCount");
-    const newCount = Math.max(0, parseInt(badge.textContent || "0") - 1);
-    badge.textContent = newCount;
-
-    if (newCount === 0) {
-      const list = document.getElementById("orderItemsList");
-      const empty = document.createElement("p");
-      empty.id = "emptyOrderItems";
-      empty.className = "text-muted small px-3 py-2 mb-0";
-      empty.textContent = "Нет позиций";
-      list.appendChild(empty);
-    }
-  } catch (err) {
-    alert("Сетевая ошибка.");
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-x-lg" style="font-size:.7rem"></i>';
-    }
-  }
-}
-
-/* Event delegation for remove buttons (handles server-rendered and JS-added items) */
-if (HAS_ORDER) {
-  document.getElementById("orderItemsList").addEventListener("click", (e) => {
-    const btn = e.target.closest(".remove-order-item-btn");
-    if (!btn) return;
-    const rowEl = btn.closest(".list-group-item");
-    const itemId = btn.dataset.itemId;
-    if (itemId && rowEl) handleRemoveOrderItem(itemId, rowEl);
-  });
-}
 
 /* ── Phase transitions ── */
 function showAssortmentPhase() {
@@ -419,8 +309,3 @@ document.getElementById("backToAssortmentBtn").addEventListener("click", () => {
   document.getElementById("resultsSection").classList.remove("d-none");
 });
 
-/* ── Toast ── */
-function showToast(msg) {
-  document.getElementById("toastMessage").textContent = msg;
-  bootstrap.Toast.getOrCreateInstance(document.getElementById("addToast"), {delay: 3000}).show();
-}

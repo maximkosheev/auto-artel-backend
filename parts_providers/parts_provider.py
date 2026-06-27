@@ -28,6 +28,7 @@ class AutoPartsProvider(ABC):
 
 class SearchResultItem:
     def __init__(self):
+        self.internal_art_id = None
         self.article_number = None
         self.manufacture = None
         self.name = None
