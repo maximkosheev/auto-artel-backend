@@ -6,6 +6,9 @@ const ADD_URL         = {% if order %}"{% url 'orders:add_order_item' order.id %
 const CSRF_TOKEN      = "{{ csrf_token }}";
 const CART_ICON_URL   = "{% static 'images/shopping_cart.svg' %}";
 
+let currentItems = [];
+let currentManufacture = "";
+
 /* ── Helpers ── */
 function setSearchLoading(loading) {
   document.getElementById("searchBtnText").classList.toggle("d-none", loading);
@@ -135,28 +138,105 @@ async function handleAssortmentRowClick(e) {
 }
 
 function renderFullResults(items, manufacture) {
-  const body      = document.getElementById("fullResultsBody");
+  currentItems = items || [];
+  currentManufacture = manufacture;
+
   const tableWrap = document.getElementById("fullResultsTableWrap");
   const loading   = document.getElementById("fullResultsLoading");
   const empty     = document.getElementById("fullEmptyState");
 
   loading.classList.add("d-none");
-  body.innerHTML = "";
 
-  if (!items || items.length === 0) {
+  if (currentItems.length === 0) {
     empty.classList.remove("d-none");
     return;
   }
 
-  document.getElementById("fullResultCount").textContent = items.length;
-  tableWrap.classList.remove("d-none");
+  document.getElementById("fullResultCount").textContent = currentItems.length;
 
-  const colSpan   = HAS_ORDER ? 8 : 7;
-  const matched   = items.filter(i => i.manufacture === manufacture);
-  const analogs   = items.filter(i => i.manufacture !== manufacture);
+  const manufacturers = [...new Set(currentItems.map(i => i.manufacture))].sort();
+  buildManufacturerFilter(manufacturers);
+  document.getElementById("manufacturerFilter").classList.remove("d-none");
+
+  tableWrap.classList.remove("d-none");
+  applyManufacturerFilter();
+}
+
+function buildManufacturerFilter(manufacturers) {
+  const menu = document.getElementById("manufacturerFilterMenu");
+  menu.innerHTML = "";
+
+  const selectAllLi = document.createElement("li");
+  selectAllLi.innerHTML = `
+    <label class="dropdown-item d-flex align-items-center gap-2">
+      <input type="checkbox" id="mfgSelectAll" checked>
+      <span class="fw-semibold">Выбрать все</span>
+    </label>`;
+  menu.appendChild(selectAllLi);
+
+  const divider = document.createElement("li");
+  divider.innerHTML = '<hr class="dropdown-divider">';
+  menu.appendChild(divider);
+
+  manufacturers.forEach(mfg => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <label class="dropdown-item d-flex align-items-center gap-2">
+        <input type="checkbox" class="mfg-checkbox" value="${escAttr(mfg)}" checked>
+        <span>${escHtml(mfg)}</span>
+      </label>`;
+    menu.appendChild(li);
+  });
+
+  document.getElementById("mfgSelectAll").addEventListener("change", (e) => {
+    document.querySelectorAll(".mfg-checkbox").forEach(cb => { cb.checked = e.target.checked; });
+    updateFilterLabel();
+    applyManufacturerFilter();
+  });
+
+  menu.querySelectorAll(".mfg-checkbox").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const all = [...document.querySelectorAll(".mfg-checkbox")];
+      const checkedCount = all.filter(c => c.checked).length;
+      const selectAll = document.getElementById("mfgSelectAll");
+      if (checkedCount === all.length) {
+        selectAll.checked = true;
+        selectAll.indeterminate = false;
+      } else if (checkedCount === 0) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+      } else {
+        selectAll.indeterminate = true;
+      }
+      updateFilterLabel();
+      applyManufacturerFilter();
+    });
+  });
+
+  updateFilterLabel();
+}
+
+function updateFilterLabel() {
+  const all = [...document.querySelectorAll(".mfg-checkbox")];
+  const checkedCount = all.filter(c => c.checked).length;
+  document.getElementById("manufacturerFilterLabel").textContent =
+    `Производитель (${checkedCount}/${all.length})`;
+}
+
+function applyManufacturerFilter() {
+  const body = document.getElementById("fullResultsBody");
+  body.innerHTML = "";
+
+  const selected = new Set(
+    [...document.querySelectorAll(".mfg-checkbox:checked")].map(cb => cb.value)
+  );
+
+  const colSpan = HAS_ORDER ? 8 : 7;
+  const matched = currentItems.filter(i => i.manufacture === currentManufacture && selected.has(i.manufacture));
+  const analogs = currentItems.filter(i => i.manufacture !== currentManufacture && selected.has(i.manufacture));
 
   if (matched.length > 0) {
-    appendGroupHeader(body, escHtml(manufacture), colSpan);
+    appendGroupHeader(body, escHtml(currentManufacture), colSpan);
     matched.forEach(item => appendResultRow(body, item));
   }
 
@@ -289,6 +369,10 @@ function showAssortmentPhase() {
   document.getElementById("fullResultsLoading").classList.add("d-none");
   document.getElementById("fullResultsTableWrap").classList.add("d-none");
   document.getElementById("fullEmptyState").classList.add("d-none");
+  document.getElementById("manufacturerFilter").classList.add("d-none");
+  document.getElementById("manufacturerFilterMenu").innerHTML = "";
+  currentItems = [];
+  currentManufacture = "";
 }
 
 function showFullResultsPhase(pin, manufacture) {
