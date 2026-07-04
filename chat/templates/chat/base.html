@@ -126,7 +126,7 @@
             {% for client in clients %}
             <a href="#" onclick="selectClient(event, '{% url 'chat:chat_with_client' client.id %}')">
                 <div class="client-item {% if client.unread_count > 0 %}has-unread{% endif %} {% if selected_client and client.id == selected_client.id %}active{% endif %}">
-                    <span class="client-name">{{client.name|escape}}</span>
+                    <span class="client-name">{{client.name|escape}}{% if client.internal_name %}({{client.internal_name|escape}}){% endif %}</span>
                     {% if client.unread_count > 0 %}<span class="unread-badge">{{ client.unread_count }}</span>{% endif %}
                 </div>
             </a>

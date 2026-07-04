@@ -19,6 +19,7 @@ class Vehicle(models.Model):
 class Client(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.RESTRICT)
     name = models.CharField(help_text='Фамилия Имя Отчество')
+    internal_name = models.CharField(help_text='Дополнительное имя, назначается администратором', null=True)
     phone = models.CharField(unique=True, help_text='Телефон для связи')
     telegram_id = models.BigIntegerField(null=True, unique=True)
 
@@ -69,6 +70,9 @@ class Order(models.Model):
     created = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(default=timezone.now)
     initial_requirements = models.TextField()
+
+    def __str__(self):
+        return f'Заказ #{self.id} ({self.get_status_display()})'
 
 
 class OrderItem(models.Model):
