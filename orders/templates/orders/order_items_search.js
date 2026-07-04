@@ -8,6 +8,8 @@ const CART_ICON_URL   = "{% static 'images/shopping_cart.svg' %}";
 
 let currentItems = [];
 let currentManufacture = "";
+let sortField = null;
+let sortDir = "asc";
 
 /* ── Helpers ── */
 function setSearchLoading(loading) {
@@ -159,6 +161,7 @@ function renderFullResults(items, manufacture) {
   document.getElementById("manufacturerFilter").classList.remove("d-none");
 
   tableWrap.classList.remove("d-none");
+  updateSortHeaders();
   applyManufacturerFilter();
 }
 
@@ -232,8 +235,8 @@ function applyManufacturerFilter() {
   );
 
   const colSpan = HAS_ORDER ? 8 : 7;
-  const matched = currentItems.filter(i => i.manufacture === currentManufacture && selected.has(i.manufacture));
-  const analogs = currentItems.filter(i => i.manufacture !== currentManufacture && selected.has(i.manufacture));
+  const matched = sortGroup(currentItems.filter(i => i.manufacture === currentManufacture && selected.has(i.manufacture)));
+  const analogs = sortGroup(currentItems.filter(i => i.manufacture !== currentManufacture && selected.has(i.manufacture)));
 
   if (matched.length > 0) {
     appendGroupHeader(body, escHtml(currentManufacture), colSpan);
@@ -245,6 +248,56 @@ function applyManufacturerFilter() {
     analogs.forEach(item => appendResultRow(body, item));
   }
 }
+
+/* ── Sorting (within original/analog groups) ── */
+function sortGroup(items) {
+  if (!sortField) return items;
+
+  const dir = sortDir === "asc" ? 1 : -1;
+  return [...items].sort((a, b) => {
+    const va = a[sortField];
+    const vb = b[sortField];
+
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+
+    if (sortField === "price") {
+      return (parseFloat(va) - parseFloat(vb)) * dir;
+    }
+    return String(va).localeCompare(String(vb)) * dir;
+  });
+}
+
+function updateSortHeaders() {
+  document.querySelectorAll(".sortable-col").forEach(th => {
+    const icon = th.querySelector(".sort-icon");
+    th.classList.remove("sort-asc", "sort-desc");
+    icon.classList.remove("bi-arrow-up", "bi-arrow-down");
+    icon.classList.add("bi-arrow-down-up");
+
+    if (th.dataset.sortField === sortField) {
+      th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+      icon.classList.remove("bi-arrow-down-up");
+      icon.classList.add(sortDir === "asc" ? "bi-arrow-up" : "bi-arrow-down");
+    }
+  });
+}
+
+function handleSortHeaderClick(e) {
+  const field = e.currentTarget.dataset.sortField;
+  if (sortField === field) {
+    sortDir = sortDir === "asc" ? "desc" : "asc";
+  } else {
+    sortField = field;
+    sortDir = "asc";
+  }
+  updateSortHeaders();
+  applyManufacturerFilter();
+}
+
+document.getElementById("sortByPrice").addEventListener("click", handleSortHeaderClick);
+document.getElementById("sortByDelivery").addEventListener("click", handleSortHeaderClick);
 
 function appendGroupHeader(tbody, label, colSpan) {
   const tr = document.createElement("tr");

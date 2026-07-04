@@ -134,9 +134,13 @@
                   <th>Артикул</th>
                   <th>Производитель</th>
                   <th>Наименование</th>
-                  <th class="text-end">Цена</th>
+                  <th class="text-end sortable-col" id="sortByPrice" data-sort-field="price">
+                    Цена <i class="bi bi-arrow-down-up sort-icon"></i>
+                  </th>
                   <th class="text-center">Кол-во</th>
-                  <th>Срок доставки</th>
+                  <th class="sortable-col" id="sortByDelivery" data-sort-field="delivery_time">
+                    Срок доставки <i class="bi bi-arrow-down-up sort-icon"></i>
+                  </th>
                   <th>Склад</th>
                   {% if order %}<th class="text-center">Добавить</th>{% endif %}
                 </tr>
