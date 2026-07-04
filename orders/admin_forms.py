@@ -1,6 +1,6 @@
 from django import forms
 
-from orders.models import Client, Manager
+from orders.models import Client, Manager, Order
 from utils import phone_utils
 
 
@@ -16,6 +16,7 @@ class PhoneNumberField(forms.CharField):
 
 class ClientForm(forms.ModelForm):
     phone = PhoneNumberField(label='Телефон', help_text='Телефон в формате "+7XXXXXXXXXX"', validators=[phone_validator])
+    internal_name = forms.CharField(label='Псевдоним', help_text='Дополнительное имя, облегчающее идентификацию клиента')
 
     class Meta:
         model = Client
@@ -48,3 +49,14 @@ class ManagerForm(forms.ModelForm):
             "name": "Имя"
         }
         fields = ['user', 'name']
+
+
+class OrderForm(forms.ModelForm):
+
+    class Meta:
+        model = Order
+        labels = {
+            "client": "Клиент",
+            "initial_requirements": "Пожелания клиента"
+        }
+        fields = ['client', 'initial_requirements']
