@@ -1,4 +1,5 @@
 import json
+import math
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -248,10 +249,17 @@ class OrderItemAdd(ManagerMixin, View):
         }, status=201)
 
     def calc_final_price(self, purchase_price, count, discount, extra):
+        # стоимость закупки
         purchase_cost = purchase_price * count
+        # наша надбавка
         extra_cost = purchase_cost * extra / 100
+        # надбавка с учетом скидки
         extra_with_discount = extra_cost * (100 - discount) / 100
-        return purchase_cost + extra_with_discount
+        # итоговая стоимость = стоимость закупки + надбавка с учетом скидки
+        price_with_discount = purchase_cost + extra_with_discount
+        # округляем до большего кратного 50р
+        final_price = math.ceil(price_with_discount / 50) * 50
+        return final_price
 
     def insert_or_update(self, order, article_number, internal_id, manufacture, name, provider, delivery_dt, warehouse,
                          purchase_price, count, discount, price):
