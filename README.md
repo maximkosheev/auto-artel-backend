@@ -22,6 +22,21 @@
    # пароль для супер пользователя задается в переменной окружения  DJANGO_SUPERUSER_PASSWORD
    ```
 
+### Запуск тестов
+   ```bash
+   python manage.py test
+   ```
+   Запустить тесты только одного приложения (например, orders):
+   ```bash
+   python manage.py test orders
+   ```
+   Запустить конкретный класс или тест:
+   ```bash
+   python manage.py test orders.tests.OrderItemUpdateCountTests
+   python manage.py test orders.tests.OrderItemUpdateCountTests.test_update_count_recalculates_price
+   ```
+   p.s. тесты создают отдельную тестовую БД (`test_<DB_NAME>`), поэтому пользователь БД из `.env` должен иметь право её создавать.
+
 ### Сборка Docker образа
 1) **Установить переменные окружения**
 2) **Сборка docker образа**

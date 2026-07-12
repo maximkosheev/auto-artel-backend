@@ -1,22 +1,43 @@
 import json
+import logging
 import math
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import generic, View
 from django.views.generic.edit import FormMixin
-from django.shortcuts import get_object_or_404, render, redirect
-import logging
-from django.conf import settings
 
 from parts_providers import ProviderApiError
 from utils.date_utils import parse_date
 from .forms import OrderForm, OrderNewForm, OrderItemFormSet
 from .models import Order, Manager, OrderItem
+
+
+def calc_final_price(purchase_price: Decimal, count: int, discount: int, extra: int):
+    """
+    @param purchase_price: цена закупки
+    @param count: количество
+    @param discount: скидка (0 - без скидки; 100 - бесплатно)
+    @param extra: надбавка (в процентах)
+    @return: итоговая стоимость
+    """
+    # стоимость закупки
+    purchase_cost = purchase_price * count
+    # наша надбавка
+    extra_cost = purchase_cost * extra / 100
+    # надбавка с учетом скидки
+    extra_with_discount = extra_cost * (100 - discount) / 100
+    # итоговая стоимость = стоимость закупки + надбавка с учетом скидки
+    price_with_discount = purchase_cost + extra_with_discount
+    # округляем до большего кратного 50р
+    final_price = math.ceil(price_with_discount / 50) * 50
+    return final_price
 
 
 def is_manager(user):
@@ -32,6 +53,19 @@ class ManagerMixin(UserPassesTestMixin):
 
     def get_manager(self) -> Manager:
         return Manager.objects.get(user=self.get_user())
+
+
+class OrderStatusMixin:
+    required_order_status_list = ['NEW']
+
+    def get_order(self, request, *args, **kwargs):
+        return get_object_or_404(Order, pk=kwargs['pk'])
+
+    def dispatch(self, request, *args, **kwargs):
+        self.order = self.get_order(request, *args, **kwargs)
+        if self.order.status not in self.required_order_status_list:
+            return JsonResponse({"error": "Заказ уже в работе"}, status=422)
+        return super.dispatch(request, *args, **kwargs)
 
 
 class OrderListView(ManagerMixin, generic.ListView):
@@ -191,9 +225,12 @@ class ItemsFullSearchResult(ManagerMixin, View):
             return JsonResponse({"error": "Поставщик недоступен"}, status=502)
 
 
-class OrderItemAdd(ManagerMixin, View):
+class OrderItemAdd(ManagerMixin, OrderStatusMixin, View):
+    def get_order(self, request, *args, **kwargs):
+        return get_object_or_404(Order, pk=kwargs['pk'])
+
     def post(self, request, pk):
-        order = get_object_or_404(Order, pk=pk)
+        order = self.get_order(request, pk=pk)
 
         try:
             data = json.loads(request.body.decode('utf-8'))
@@ -216,7 +253,7 @@ class OrderItemAdd(ManagerMixin, View):
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid count value."}, status=400)
         discount = 0
-        price = self.calc_final_price(purchase_price, count, discount, 30)
+        price = calc_final_price(purchase_price, count, discount, 30)
 
         order_item = self.insert_or_update(
             order=order,
@@ -247,19 +284,6 @@ class OrderItemAdd(ManagerMixin, View):
                 "price": str(order_item.price),
             },
         }, status=201)
-
-    def calc_final_price(self, purchase_price, count, discount, extra):
-        # стоимость закупки
-        purchase_cost = purchase_price * count
-        # наша надбавка
-        extra_cost = purchase_cost * extra / 100
-        # надбавка с учетом скидки
-        extra_with_discount = extra_cost * (100 - discount) / 100
-        # итоговая стоимость = стоимость закупки + надбавка с учетом скидки
-        price_with_discount = purchase_cost + extra_with_discount
-        # округляем до большего кратного 50р
-        final_price = math.ceil(price_with_discount / 50) * 50
-        return final_price
 
     def insert_or_update(self, order, article_number, internal_id, manufacture, name, provider, delivery_dt, warehouse,
                          purchase_price, count, discount, price):
@@ -293,8 +317,59 @@ class OrderItemAdd(ManagerMixin, View):
         return item
 
 
-class OrderItemRemove(ManagerMixin, View):
-    def delete(self, request, item_pk):
+class OrderItemBulkRemove(ManagerMixin, OrderStatusMixin, View):
+    def get_order(self, request, *args, **kwargs):
+        return get_object_or_404(Order, pk=kwargs['pk'])
+
+    def delete(self, request, pk):
+        order = self.get_order(request, pk=pk)
+
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        item_ids = data.get("item_ids")
+        if not isinstance(item_ids, list) or not item_ids:
+            return JsonResponse({"error": "item_ids is required."}, status=400)
+
+        try:
+            item_ids = [int(item_id) for item_id in item_ids]
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "Invalid item id."}, status=400)
+
+        deleted_count, _ = OrderItem.objects.filter(order=order, id__in=item_ids).delete()
+
+        return JsonResponse({"success": True, "deleted": deleted_count})
+
+
+class OrderItemUpdateCount(ManagerMixin, OrderStatusMixin, View):
+    def get_order(self, request, *args, **kwargs):
+        return get_object_or_404(OrderItem, pk=kwargs['item_pk']).order
+
+    def patch(self, request, item_pk):
         item = get_object_or_404(OrderItem, pk=item_pk)
-        item.delete()
-        return JsonResponse({"success": True})
+
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            count = int(data.get("count"))
+            if count < 1:
+                return JsonResponse({"error": "Count must be at least 1."}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "Invalid count value."}, status=400)
+
+        item.price = calc_final_price(item.purchase_price, count, item.discount, 30)
+        item.count = count
+
+        item.save(update_fields=["count", "price"])
+
+        return JsonResponse({
+            "success": True,
+            "item": {
+                "id": item.id,
+                "count": item.count,
+                "price": str(item.price),
+            },
+        })
