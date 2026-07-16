@@ -65,7 +65,7 @@ class OrderStatusMixin:
         self.order = self.get_order(request, *args, **kwargs)
         if self.order.status not in self.required_order_status_list:
             return JsonResponse({"error": "Заказ уже в работе"}, status=422)
-        return super.dispatch(request, *args, **kwargs)
+        return super().dispatch(request, *args, **kwargs)
 
 
 class OrderListView(ManagerMixin, generic.ListView):
