@@ -16,6 +16,7 @@ urlpatterns = [
     path('clients/', ClientView.as_view(), name='client'),
     path('clients/<int:telegram_id>/detail/', ClientDetailView.as_view(), name='client_detail'),
     path('clients/<int:client_id>/orders/', ClientOrdersView.as_view(), name='client_orders'),
+    path('clients/<int:pk>/profile/', ClientProfileView.as_view(), name='client_profile'),
     path('vehicle/', VehicleView.as_view(), name='vehicle'),
     path('orders/', OrderView.as_view(), name='orders'),
     path('chat/', ChatView.as_view(), name='chat'),

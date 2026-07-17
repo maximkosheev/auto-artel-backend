@@ -54,3 +54,24 @@ class ClientDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = ['id', 'name', 'phone', 'telegram_id', 'vehicle_list']
+
+
+class ClientPatchSerializer(serializers.ModelSerializer):
+    phone = ClientPhoneField()
+
+    class Meta:
+        model = Client
+        fields = ['name', 'phone']
+
+    def validate(self, attrs):
+        phone = attrs.get('phone')
+        if phone and Client.objects.exclude(pk=self.instance.pk).filter(phone=phone).exists():
+            raise serializers.ValidationError("A client with this phone already exists")
+        return attrs
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
