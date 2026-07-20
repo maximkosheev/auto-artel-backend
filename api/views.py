@@ -7,13 +7,14 @@ from rest_framework.generics import (
     RetrieveAPIView,
     ListAPIView,
     ListCreateAPIView,
-    get_object_or_404)
+    get_object_or_404, UpdateAPIView)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.serializers.chat_message_serializers import CreateChatMessageSerializer, PatchChatMessageSerializer
-from api.serializers.client_serializers import ClientRegisterSerializer, ClientDetailSerializer, ClientSerializer
+from api.serializers.client_serializers import ClientRegisterSerializer, ClientDetailSerializer, ClientSerializer, \
+    ClientPatchSerializer
 from api.serializers.order_serializers import OrderSerializer, OrderCreateSerializer
 from api.serializers.vehicle_serializers import CreateVehicleSerializer
 from chat.models import ChatMessage
@@ -61,6 +62,19 @@ class ClientView(ListCreateAPIView):
 
     def get_paginated_response(self, data):
         pass
+
+
+class ClientProfileView(UpdateAPIView):
+    permission_classes = [IsApiUser]
+    queryset = Client.objects.all()
+    http_method_names = ['patch', 'options']
+
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = ClientPatchSerializer(instance, data=request.data, partial=True, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(status=status.HTTP_200_OK)
 
 
 class ClientDetailView(RetrieveAPIView):
