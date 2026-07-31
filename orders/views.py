@@ -68,6 +68,29 @@ class OrderStatusMixin:
         return super().dispatch(request, *args, **kwargs)
 
 
+class OrderIsAvailableMixin:
+    def order_is_available_for_me(self, request):
+        pass
+
+    def get_order(self, request, *args, **kwargs):
+        return get_object_or_404(Order, pk=kwargs['pk'])
+
+    def dispatch(self, request, *args, **kwargs):
+        self.order = self.get_order(request, *args, **kwargs)
+        if not self.order_is_available_for_me(request):
+            return JsonResponse({"error": "Вы не можете работать над этим заказом"}, status=403)
+
+
+class OrderIsMine(OrderIsAvailableMixin):
+    def order_is_available_for_me(self, request):
+        return self.order.manager and self.order.manager.user == request.user
+
+
+class OrderIsFreeOrMine(OrderIsAvailableMixin):
+    def order_is_available_for_me(self, request):
+        return self.order.manager is None or self.order.manager.user == request.user
+
+
 class OrderListView(ManagerMixin, generic.ListView):
     template_name = 'orders/list.html'
     model = Order
@@ -225,13 +248,8 @@ class ItemsFullSearchResult(ManagerMixin, View):
             return JsonResponse({"error": "Поставщик недоступен"}, status=502)
 
 
-class OrderItemAdd(ManagerMixin, OrderStatusMixin, View):
-    def get_order(self, request, *args, **kwargs):
-        return get_object_or_404(Order, pk=kwargs['pk'])
-
-    def post(self, request, pk):
-        order = self.get_order(request, pk=pk)
-
+class OrderItemAdd(ManagerMixin, OrderIsFreeOrMine, View):
+    def post(self, request):
         try:
             data = json.loads(request.body.decode('utf-8'))
         except json.JSONDecodeError:
@@ -256,7 +274,7 @@ class OrderItemAdd(ManagerMixin, OrderStatusMixin, View):
         price = calc_final_price(purchase_price, count, discount, 30)
 
         order_item = self.insert_or_update(
-            order=order,
+            order=self.order,
             article_number=article_number,
             internal_id=internal_art_id,
             manufacture=manufacture,
@@ -267,7 +285,8 @@ class OrderItemAdd(ManagerMixin, OrderStatusMixin, View):
             purchase_price=purchase_price,
             count=count,
             discount=discount,
-            price=price
+            price=price,
+            status=OrderItem.Statuses.DEFAULT
         )
 
         if not article_number:
@@ -286,7 +305,7 @@ class OrderItemAdd(ManagerMixin, OrderStatusMixin, View):
         }, status=201)
 
     def insert_or_update(self, order, article_number, internal_id, manufacture, name, provider, delivery_dt, warehouse,
-                         purchase_price, count, discount, price):
+                         purchase_price, count, discount, price, status):
 
         item = OrderItem.objects.filter(
             order=order,
@@ -311,19 +330,15 @@ class OrderItemAdd(ManagerMixin, OrderStatusMixin, View):
                 purchase_price=purchase_price,
                 count=count,
                 discount=discount,
-                price=price
+                price=price,
+                status=status
             )
 
         return item
 
 
-class OrderItemBulkRemove(ManagerMixin, OrderStatusMixin, View):
-    def get_order(self, request, *args, **kwargs):
-        return get_object_or_404(Order, pk=kwargs['pk'])
-
-    def delete(self, request, pk):
-        order = self.get_order(request, pk=pk)
-
+class OrderItemBulkRemove(ManagerMixin, OrderIsFreeOrMine, View):
+    def delete(self, request):
         try:
             data = json.loads(request.body.decode('utf-8'))
         except json.JSONDecodeError:
@@ -338,18 +353,26 @@ class OrderItemBulkRemove(ManagerMixin, OrderStatusMixin, View):
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid item id."}, status=400)
 
-        deleted_count, _ = OrderItem.objects.filter(order=order, id__in=item_ids).delete()
+        deleted_count, _ = OrderItem.objects.filter(order=self.order,
+                                                    id__in=item_ids,
+                                                    status=OrderItem.Statuses.DEFAULT).delete()
 
         return JsonResponse({"success": True, "deleted": deleted_count})
 
 
-class OrderItemUpdateCount(ManagerMixin, OrderStatusMixin, View):
-    def get_order(self, request, *args, **kwargs):
-        return get_object_or_404(OrderItem, pk=kwargs['item_pk']).order
+class OrderItemUpdateCount(ManagerMixin, OrderIsFreeOrMine, View):
+    def get_item(self, request, *args, **kwargs):
+        return get_object_or_404(OrderItem, pk=kwargs['item_pk'])
 
-    def patch(self, request, item_pk):
-        item = get_object_or_404(OrderItem, pk=item_pk)
+    def dispatch(self, request, *args, **kwargs):
+        self.item = self.get_item(request, *args, kwargs)
+        if self.item.status != OrderItem.Statuses.DEFAULT:
+            return JsonResponse({"error": "Позиция не может быть изменена"}, status=422)
+        return super().dispatch(request, *args, **kwargs)
 
+    def patch(self, request):
+        if self.item.status != OrderItem.Statuses.DEFAULT:
+            return JsonResponse({"error": "Позиция не может быть изменена"})
         try:
             data = json.loads(request.body.decode('utf-8'))
             count = int(data.get("count"))
@@ -360,16 +383,41 @@ class OrderItemUpdateCount(ManagerMixin, OrderStatusMixin, View):
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid count value."}, status=400)
 
-        item.price = calc_final_price(item.purchase_price, count, item.discount, 30)
-        item.count = count
+        self.item.price = calc_final_price(self.item.purchase_price, count, self.item.discount, 30)
+        self.item.count = count
 
-        item.save(update_fields=["count", "price"])
+        self.item.save(update_fields=["count", "price"])
 
         return JsonResponse({
             "success": True,
             "item": {
-                "id": item.id,
-                "count": item.count,
-                "price": str(item.price),
+                "id": self.item.id,
+                "count": self.item.count,
+                "price": str(self.item.price),
             },
         })
+
+
+class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        item_ids = data.get("item_ids")
+        if not isinstance(item_ids, list) or not item_ids:
+            return JsonResponse({"error": "item_ids is required."}, status=400)
+
+        try:
+            item_ids = [int(item_id) for item_id in item_ids]
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "Invalid item id."}, status=400)
+
+
+        #TODO!
+        deleted_count, _ = OrderItem.objects.filter(order=self.order,
+                                                    id__in=item_ids,
+                                                    status=OrderItem.Statuses.DEFAULT).delete()
+
+        return JsonResponse({"success": True, "deleted": deleted_count})

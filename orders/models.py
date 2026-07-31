@@ -76,11 +76,17 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
+    class Statuses(models.TextChoices):
+        DEFAULT = 'DEFAULT', 'Не задан'
+        AGREEMENT = 'AGREEMENT', 'На согласовании'
+        ORDERED = 'ORDERED', 'Заказан',
+        HALF_ORDERED = 'HALF_ORDERED', 'Заказан частично'
     id = models.BigAutoField(primary_key=True)
     article_number = models.CharField(null=False, default='Артикул отсутствует', help_text='Артикул')
     manufacture = models.CharField(null=False, default='Производитель отсутствует', help_text='Производитель')
     name = models.CharField(null=False, default="Наименование отсутствует", help_text='Наименование')
     count = models.IntegerField(null=False, default=1, help_text='Количество')
+    status = models.CharField(choices=Statuses, default=Statuses.DEFAULT)
     price = models.DecimalField(null=False, max_digits=19, decimal_places=2, default=0.0, help_text='Цена')
     discount = models.DecimalField(null=False, max_digits=5, decimal_places=2, default=0.00,
                                    help_text='Скидка. 0 - 100% оплаты; 0.1 - скидка 10%')
