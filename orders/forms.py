@@ -1,31 +1,22 @@
 from django import forms
-from django.forms import inlineformset_factory
 
-from .models import Order, OrderItem
+from .models import Order
 
 
 class OrderNewForm(forms.ModelForm):
     class Meta:
         model = Order
-        fields = ['client', 'initial_requirements', 'created']
+        fields = ['initial_requirements']
         widgets = {
-            'client': forms.TextInput(attrs={
-                'readonly': True
-            }),
             'initial_requirements': forms.Textarea(attrs={
                 'class': 'form-control',
                 'readonly': True,
                 'rows': 4,
                 'placeholder': 'Пожелания клиента'
             }),
-            'created': forms.DateTimeInput(attrs={
-                'readonly': True
-            })
         }
         labels = {
-            'client': 'Клиент',
-            'initial_requirements': 'Исходные требования клиента',
-            'created': 'Дата создания'
+            'initial_requirements': 'Исходные требования клиента'
         }
 
 
@@ -57,46 +48,3 @@ class OrderForm(forms.ModelForm):
                 }),
                 label='Клиент',
                 required=False)
-
-
-class OrderItemForm(forms.ModelForm):
-    class Meta:
-        model = OrderItem
-        fields = ['article_number', 'manufacture', 'name', 'price']
-        widgets = {
-            'article_number': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Артикул'
-            }),
-            'manufacture': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Производитель'
-            }),
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Наименование'
-            }),
-            'price': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0.00'
-            }),
-        }
-        labels = {
-            'article_number': 'Артикул',
-            'manufacture': 'Производитель',
-            'name': 'Наименование',
-            'price': 'Цена'
-        }
-
-
-OrderItemFormSet = inlineformset_factory(
-    Order,
-    OrderItem,
-    form=OrderItemForm,
-    extra=1,  # Number of empty forms to display
-    can_delete=True,
-    min_num=0,
-    validate_min=False
-)

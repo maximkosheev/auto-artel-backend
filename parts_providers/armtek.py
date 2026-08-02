@@ -1,14 +1,15 @@
 import logging
 import os
+from datetime import datetime
 from json import JSONDecodeError
 
 import pydantic
 import requests
 from django.core.cache import cache
-from pydantic import ConfigDict
-from datetime import datetime
 
 from . import ProviderApiError
+from .armtek_models import WarehouseData, SearchPinResponse, AssortmentSearchResponse, UserInfoResponse, \
+    UserVKorgResponse
 from .parts_provider import AutoPartsProvider, AssortmentSearchResultItem, SearchResultItem
 
 logger = logging.getLogger(__name__)
@@ -159,139 +160,5 @@ class ArmTekProvider(AutoPartsProvider):
         warehouse_data = WarehouseData.model_validate(cache.get(warehouse_code, {'SKLNAME': 'Неизвестный склад'}))
         return warehouse_data.SKLNAME
 
-
-class UserVKorg(pydantic.BaseModel):
-    model_config = ConfigDict(extra='ignore')
-
-    VKORG: str
-    PROGRAM_NAME: str
-
-
-class ZA_TABItem(pydantic.BaseModel):
-    model_config = ConfigDict(extra='ignore')
-
-    KUNNR: str
-    DEFAULT: int
-    SNAME: str
-    FNAME: str
-    ADRESS: str
-    PHONE: str
-
-
-class CONTACT_TABItem(pydantic.BaseModel):
-    model_config = ConfigDict(extra='ignore')
-
-    PARNR: str
-    DEFAULT: int
-    FNAME: str
-    LNAME: str
-    MNAME: str
-    PHONE: str
-    EMAIL: str
-
-
-class RG_TABItem(pydantic.BaseModel):
-    model_config = ConfigDict(extra='ignore')
-
-    KUNNR: str
-    DEFAULT: int
-    SNAME: str
-    FNAME: str
-    ADRESS: str
-    PHONE: str
-    ZA_TAB: list[ZA_TABItem]
-    CONTACT_TAB: list[CONTACT_TABItem]
-
-
-class User_STRUCTURE(pydantic.BaseModel):
-    model_config = ConfigDict(extra='ignore')
-
-    KUNAG: str
-    VKORG: str
-    SNAME: str
-    FNAME: str
-    ADRESS: str
-    PHONE: str
-    RG_TAB: list[RG_TABItem]
-
-
-class ArmTekResponse(pydantic.BaseModel):
-    STATUS: int
-    MESSAGES: list[str]
-
-
-class UserVKorgResponse(ArmTekResponse):
-    model_config = ConfigDict(extra='ignore')
-
-    RESP: list[UserVKorg]
-
-
-class UserInfoResp(pydantic.BaseModel):
-    STRUCTURE: User_STRUCTURE
-
-
-class UserInfoResponse(ArmTekResponse):
-    model_config = ConfigDict(extra='ignore')
-
-    RESP: UserInfoResp
-
-
-class SearchPinItem(pydantic.BaseModel):
-    model_config = ConfigDict(extra='ignore', )
-
-    PIN: str | None = None
-    BRAND: str | None = None
-    NAME: str | None = None
-    ARTID: str | None = None
-    PARNR: str | None = None
-    KEYZAK: str | None = None
-    RVALUE: str | None = None
-    RETDAYS: str | None = None
-    RDPRF: str | None = None
-    MINBM: str | None = None
-    VENSL: str | None = None
-    PRICE: str | None = None
-    WAERS: str | None = None
-    DLVDT: str | None = None
-    WRNTDT: str | None = None
-    ANALOG: str | None = None
-    TYPEB: str | None = None
-    DSPEC: str | None = None
-    RCOST: str | None = None
-    MRKBY: str | None = None
-    PNOTE: str | None = None
-    IMP_ADD: str | None = None
-    SELLP: str | None = None
-    REST_ADD: str | None = None
-    REST_ADD_P: str | None = None
-
-
-class SearchPinMsg(pydantic.BaseModel):
-    MSG: str | None = None
-
-
-class SearchPinResponse(ArmTekResponse):
-    model_config = ConfigDict(extra='ignore')
-
-    RESP: list[SearchPinItem] | SearchPinMsg
-
-
-class WarehouseData(pydantic.BaseModel):
-    model_config = ConfigDict(extra='ignore')
-
-    SKLNAME: str
-
-
-class AssortmentSearchItem(pydantic.BaseModel):
-    model_config = ConfigDict(extra='ignore')
-
-    PIN: str | None = None
-    BRAND: str | None = None
-    NAME: str | None = None
-
-
-class AssortmentSearchResponse(ArmTekResponse):
-    model_config = ConfigDict(extra='ignore')
-
-    RESP: list[AssortmentSearchItem] | SearchPinMsg
-
+    def create_order(self, order):
+        pass

@@ -9,6 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 class Broker:
+    CHAT_QUEUE_NAME = 'chat_messages'
+    NOTIFICATION_QUEUE_NAME = 'notification_messages'
+
     def __init__(self):
         self.connection_properties = URLParameters(settings.BROKER['URI'])
         self.message_properties = BasicProperties(
@@ -37,10 +40,14 @@ class Broker:
         self._connection.close()
 
     def _configure(self):
-        self._channel.queue_declare('chat_messages', durable=True)
+        self._channel.queue_declare(self.CHAT_QUEUE_NAME, durable=True)
+        self._channel.queue_declare(self.NOTIFICATION_QUEUE_NAME, durable=True)
 
     def send_chat_message(self, message):
-        self._publish('chat_messages', message)
+        self._publish(self.CHAT_QUEUE_NAME, message)
+
+    def send_notification_message(self, message):
+        self._publish(self.NOTIFICATION_QUEUE_NAME, message)
 
     def _publish(self, queue_name, message):
         try:

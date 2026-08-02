@@ -13,9 +13,10 @@ from django.urls import reverse
 from django.views import generic, View
 from django.views.generic.edit import FormMixin
 
+from auto_artel.broker import broker
 from parts_providers import ProviderApiError
 from utils.date_utils import parse_date
-from .forms import OrderForm, OrderNewForm, OrderItemFormSet
+from .forms import OrderForm, OrderNewForm
 from .models import Order, Manager, OrderItem
 
 
@@ -81,14 +82,20 @@ class OrderIsAvailableMixin:
             return JsonResponse({"error": "Вы не можете работать над этим заказом"}, status=403)
 
 
+class OrderIsFree(OrderIsAvailableMixin):
+    def order_is_available_for_me(self, request):
+        return self.order.manager is None
+
+
 class OrderIsMine(OrderIsAvailableMixin):
     def order_is_available_for_me(self, request):
         return self.order.manager and self.order.manager.user == request.user
 
 
-class OrderIsFreeOrMine(OrderIsAvailableMixin):
+class OrderIsFreeOrMine(OrderIsFree, OrderIsMine):
     def order_is_available_for_me(self, request):
-        return self.order.manager is None or self.order.manager.user == request.user
+        return (OrderIsFree.order_is_available_for_me(self, request)
+                or OrderIsMine.order_is_available_for_me(self, request))
 
 
 class OrderListView(ManagerMixin, generic.ListView):
@@ -97,52 +104,11 @@ class OrderListView(ManagerMixin, generic.ListView):
     context_object_name = 'orders'
 
 
-class OrderFormMixin(FormMixin):
+class OrderDetailView(ManagerMixin, generic.UpdateView):
     model = Order
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        if self.request.POST:
-            formset_data = self.request.POST
-            context['formset'] = OrderItemFormSet(formset_data, instance=self.object)
-        else:
-            context['formset'] = OrderItemFormSet(instance=self.object)
-
-        context['is_edit'] = (hasattr(self, 'object')
-                              and self.object is not None
-                              and self.object.pk is not None)
-
-        return context
-
-    def form_valid(self, form):
-        context = self.get_context_data()
-        formset = context['formset']
-
-        if form.is_valid() and formset.is_valid():
-            try:
-                with transaction.atomic():
-                    self.object = form.save()
-                    formset.instance = self.object
-                    formset.save()
-
-                    return super().form_valid(form)
-            except Exception as e:
-                messages.error(self.request, f'Ошибка при сохранении заказа: {str(e)}')
-                return self.form_invalid(form)
-        else:
-            messages.error(self.request, 'Пожалуйста, исправьте ошибки')
-            return self.form_invalid(form)
-
-    def form_invalid(self, form):
-        messages.error(self.request, 'Пожалуйста, исправьте ошибки')
-        return super().form_invalid(form)
-
-
-class OrderDetailView(ManagerMixin, OrderFormMixin, generic.UpdateView):
-
     def get_template_names(self):
-        if self.object.status == 'NEW':
+        if self.object.manager is None:
             return ['orders/order_new_form.html']
         elif self.object.manager != self.get_manager():
             return ['orders/order_lock_form.html']
@@ -164,6 +130,38 @@ class OrderDetailView(ManagerMixin, OrderFormMixin, generic.UpdateView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = f'Информация о заказе {self.object.client}'
         return context
+
+    def form_valid(self, form):
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    self.object = form.save(commit=False)
+
+                    if isinstance(form, OrderNewForm):
+                        self.take_order_into_work()
+
+                    self.object.save()
+                    return FormMixin.form_valid(self, form)
+            except Exception as e:
+                messages.error(self.request, f'Ошибка при сохранении заказа: {str(e)}')
+                return self.form_invalid(form)
+        else:
+            print(f"form or formset are not valid")
+            return self.form_invalid(form)
+
+    def take_order_into_work(self):
+        self.object.manager = self.get_manager()
+        self.object.status = Order.Statuses.PROCESSING
+        self.object.client_status = Order.ClientStatuses.ASSIGNED
+        broker.send_notification_message({
+            'to': self.object.client.id,
+            'to_telegram_id': self.object.client.telegram_id,
+            'text': f"Статус вашего заказа изменился. Новый статус {Order.ClientStatuses.ASSIGNED.value}"
+        })
+
+    def form_invalid(self, form):
+        messages.error(self.request, 'Пожалуйста, исправьте ошибки')
+        return super().form_invalid(form)
 
 
 class PartsSearchView(ManagerMixin, View):

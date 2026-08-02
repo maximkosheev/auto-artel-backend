@@ -1,8 +1,6 @@
 from rest_framework import serializers
 from rest_framework.fields import empty
 
-from api.serializers import utils
-from api.serializers.fields import ClientPhoneField
 from orders.models import Order, OrderItem, Client
 
 
@@ -26,7 +24,7 @@ class ClientStatusField(serializers.ChoiceField):
 
 class OrderSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
-    client_status = ClientStatusField(choices=Order.CLIENT_STATUS_CHOICES, read_only=True)
+    client_status = ClientStatusField(choices=Order.ClientStatuses, read_only=True)
     manager = ManagerNameField(required=False, read_only=True)
     created = serializers.DateTimeField()
     initial_requirements = serializers.CharField(read_only=True)

@@ -45,26 +45,25 @@ class Manager(models.Model):
 
 
 class Order(models.Model):
-    STATUS_CHOICES = [
-        ('NEW', 'Новый'),
-        ('CANCELLED', 'Отменен'),
-        ('PROCESSING', 'В работе'),
-        ('COMPLETED', 'Завершен')
-    ]
-    CLIENT_STATUS_CHOICES = [
-        ('NOT_ASSIGNED', 'Новый'),
-        ('ASSIGNED', 'Менеджер принял заказ в работу'),
-        ('WAIT_APPROVAL', 'На согласовании с клиентом'),
-        ('WAIT_PAYMENT', 'Ждет оплаты'),
-        ('PAID', 'Оплачен'),
-        ('WAIT_SEND', 'Ждет отправки у поставщиков'),
-        ('DELIVERY', 'Отправлен'),
-        ('READY', 'Ждет выдачи в ПВЗ'),
-        ('FINISHED', 'Завершен')
-    ]
+    class Statuses(models.TextChoices):
+        NEW = 'NEW', 'Новый'
+        CANCELED = ('CANCELLED', 'Отменен')
+        PROCESSING = ('PROCESSING', 'В работе')
+        COMPLETED = ('COMPLETED', 'Завершен')
+
+    class ClientStatuses(models.TextChoices):
+        NOT_ASSIGNED = ('NOT_ASSIGNED', 'Новый')
+        ASSIGNED = ('ASSIGNED', 'Менеджер принял заказ в работу')
+        WAIT_APPROVAL = ('WAIT_APPROVAL', 'На согласовании с клиентом')
+        WAIT_PAYMENT = ('WAIT_PAYMENT', 'Ждет оплаты')
+        PAID = ('PAID', 'Оплачен')
+        WAIT_SEND = ('WAIT_SEND', 'Ждет отправки у поставщиков')
+        DELIVERY = ('DELIVERY', 'Отправлен')
+        READY = ('READY', 'Ждет выдачи в ПВЗ')
+        FINISHED = ('FINISHED', 'Завершен')
     id = models.BigAutoField(primary_key=True)
-    status = models.CharField(choices=STATUS_CHOICES, default='NEW')
-    client_status = models.CharField(null=True, choices=CLIENT_STATUS_CHOICES, default='NOT_ASSIGNED')
+    status = models.CharField(choices=Statuses, default=Statuses.NEW)
+    client_status = models.CharField(null=True, choices=ClientStatuses, default=ClientStatuses.NOT_ASSIGNED)
     client = models.ForeignKey(Client, on_delete=models.PROTECT)
     manager = models.ForeignKey(Manager, null=True, on_delete=models.PROTECT)
     created = models.DateTimeField(default=timezone.now)
@@ -72,7 +71,7 @@ class Order(models.Model):
     initial_requirements = models.TextField()
 
     def __str__(self):
-        return f'Заказ #{self.id} ({self.get_status_display()})'
+        return f'Заказ #{self.id} ({self.status})'
 
 
 class OrderItem(models.Model):

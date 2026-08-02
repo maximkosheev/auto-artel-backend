@@ -25,6 +25,15 @@ class AutoPartsProvider(ABC):
         """
     pass
 
+    @abstractmethod
+    def create_order(self, order):
+        """
+        Создание заказа
+        @param order: заказ
+        @return:
+        """
+        pass
+
 
 class SearchResultItem:
     def __init__(self):
