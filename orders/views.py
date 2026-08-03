@@ -107,21 +107,31 @@ class OrderListView(ManagerMixin, generic.ListView):
 class OrderDetailView(ManagerMixin, generic.UpdateView):
     model = Order
 
+    def order_is_not_available_to_me(self):
+        return self.object.manager is not None and self.object.manager != self.get_manager()
+
     def get_template_names(self):
         if self.object.manager is None:
             return ['orders/order_new_form.html']
-        elif self.object.manager != self.get_manager():
+        elif self.order_is_not_available_to_me():
             return ['orders/order_lock_form.html']
         else:
             return ['orders/order_form.html']
 
     def get_form_class(self):
-        if self.object.status == 'NEW':
-            return OrderNewForm
-        elif self.object.manager != self.get_manager():
-            return None
-        else:
-            return OrderForm
+        return OrderNewForm if self.object.status == 'NEW' else OrderForm
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if self.order_is_not_available_to_me():
+            return self.render_to_response(self.get_context_data(form=None))
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if self.order_is_not_available_to_me():
+            return JsonResponse({"error": "Вы не можете работать над этим заказом"}, status=403)
+        return super().post(request, *args, **kwargs)
 
     def get_success_url(self):
         return reverse('orders:detail', kwargs={'pk': self.object.pk})

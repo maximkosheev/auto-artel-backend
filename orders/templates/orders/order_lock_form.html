@@ -1,0 +1,36 @@
+{% extends 'orders/base.html' %}
+
+{% block orders_extra_content %}
+    <div class="mt-4">
+        <h2>Заказ № {{ order.id }}</h2>
+
+        <div class="card">
+            <div class="card-header">
+                <h5>Детали заказа</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-auto">
+                        <span>Клиент:</span>
+                        <span>{{ order.client }}</span>
+                    </div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-auto">
+                        <span>Дата создания:</span>
+                        <span>{{ order.created|date:"d.m.Y" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-warning mt-4">
+            Этот заказ уже находится в работе у менеджера <strong>{{ order.manager }}</strong>.
+            Вы не можете вносить изменения, пока заказ занят другим менеджером.
+        </div>
+
+        <div class="mt-4">
+            <a href="{% url 'orders:list' %}" class="btn btn-secondary">Назад к списку заказов</a>
+        </div>
+    </div>
+{% endblock orders_extra_content %}
