@@ -62,105 +62,27 @@
                 </div>
             </div>
 
-            <!-- Order Items Formset -->
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5>Позиции заказа</h5>
-                    <button type="button" class="btn btn-success btn-sm" id="add-item">
-                        <i class="bi bi-plus"></i> Новая позиция
-                    </button>
-                </div>
-                <div class="card-body">
-                    {{ formset.management_form }}
+            {% include "orders/blocks/_order_card.html" %}
 
-                    <div id="formset-container">
-                        {% for item in formset %}
-                            <div class="formset-item" data-form-index="{{ forloop.counter0 }}">
-                                {% if item.instance.pk %}
-                                    {{ item.id }}
-                                {% endif %}
-
-                                <div class="row">
-                                    <div class="col-md-3">
-                                        {{ item.article_number.label_tag }}
-                                        {{ item.article_number }}
-                                        {% if item.article_number.errors %}
-                                            <div class="text-danger">
-                                                {% for error in item.article_number.errors %}
-                                                    <small>{{ error }}</small>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        {{ item.manufacture.label_tag }}
-                                        {{ item.manufacture }}
-                                        {% if item.manufacture.errors %}
-                                            <div class="text-danger">
-                                                {% for error in item.manufacture.errors %}
-                                                    <small>{{ error }}</small>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        {{ item.name.label_tag }}
-                                        {{ item.name }}
-                                        {% if item.name.errors %}
-                                            <div class="text-danger">
-                                                {% for error in item.name.errors %}
-                                                    <small>{{ error }}</small>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-
-                                    <div class="col-md-2">
-                                        {{ item.price.label_tag }}
-                                        {{ item.price }}
-                                        {% if item.price.errors %}
-                                            <div class="text-danger">
-                                                {% for error in item.price.errors %}
-                                                    <small>{{ error }}</small>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-
-                                    <div class="col-md-1 d-flex align-items-end">
-                                        {% if item.DELETE %}
-                                            <div class="form-check delete-checkbox">
-                                                {{ item.DELETE }}
-                                                <label class="form-check-label" for="{{ item.DELETE.id_for_label }}">
-                                                    Удалить
-                                                </label>
-                                            </div>
-                                        {% else %}
-                                            <button type="button" class="btn btn-danger btn-sm remove-item">Удалить</button>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                {% if item.non_field_errors %}
-                                    <div class="text-danger mt-2">
-                                        {% for error in item.non_field_errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        {% endfor %}
-                    </div>
-
-                    {% if formset.non_form_errors %}
-                        <div class="text-danger">
-                            {% for error in formset.non_form_errors %}
-                                <div>{{ error }}</div>
-                            {% endfor %}
+            <!-- модальное окно подтверждения удаления выбранных позиций -->
+            <div class="modal fade" id="removeItemsModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Удаление позиций</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                         </div>
-                    {% endif %}
+                        <div class="modal-body">
+                            <p id="removeItemsModalText"></p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                            <button type="button" class="btn btn-danger" id="confirmRemoveItemsBtn">
+                                <span class="confirm-remove-text">Удалить</span>
+                                <span class="spinner-border spinner-border-sm d-none confirm-remove-spinner"></span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -176,56 +98,6 @@
 
 {% block orders_extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const formsetContainer = document.getElementById('formset-container');
-        const addButton = document.getElementById('add-item');
-        const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
-
-        // Add new item form
-        addButton.addEventListener('click', function() {
-            const formCount = parseInt(totalFormsInput.value);
-            const emptyForm = document.querySelector('.formset-item').cloneNode(true);
-
-            // Update form indexes
-            emptyForm.innerHTML = emptyForm.innerHTML.replace(/__prefix__/g, formCount);
-            emptyForm.innerHTML = emptyForm.innerHTML.replace(/items-\d+-/g, `items-${formCount}-`);
-            emptyForm.setAttribute('data-form-index', formCount);
-
-            // Clear values
-            emptyForm.querySelectorAll('input').forEach(input => {
-                if (input.type !== 'hidden') {
-                    input.value = '';
-                }
-            });
-
-            // Replace delete checkbox with remove button for new forms
-            const deleteDiv = emptyForm.querySelector('.delete-checkbox');
-            if (deleteDiv) {
-                deleteDiv.innerHTML = '<button type="button" class="btn btn-danger btn-sm remove-item">Remove</button>';
-                deleteDiv.className = 'd-flex align-items-end';
-            }
-
-            formsetContainer.appendChild(emptyForm);
-            totalFormsInput.value = formCount + 1;
-        });
-
-        // Remove item form (for new forms)
-        formsetContainer.addEventListener('click', function(e) {
-            if (e.target.classList.contains('remove-item')) {
-                e.target.closest('.formset-item').remove();
-
-                // Update total forms count
-                const currentCount = parseInt(totalFormsInput.value);
-                totalFormsInput.value = currentCount - 1;
-
-                // Reindex remaining forms
-                const forms = formsetContainer.querySelectorAll('.formset-item');
-                forms.forEach((form, index) => {
-                    form.setAttribute('data-form-index', index);
-                    form.innerHTML = form.innerHTML.replace(/items-\d+-/g, `items-${index}-`);
-                });
-            }
-        });
-    });
+    {% include 'orders/js/order_card.js' %}
 </script>
 {% endblock orders_extra_js %}

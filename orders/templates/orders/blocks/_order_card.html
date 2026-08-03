@@ -1,0 +1,63 @@
+{% load static %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <h5 class="mb-0">Позиции заказа</h5>
+            <button type="button" id="removeSelectedBtn" class="btn btn-danger btn-sm d-none">
+                <img src="{% static 'images/trash_bin.svg' %}" width="16" height="16" alt="">
+                Удалить
+            </button>
+        </div>
+        {% if order.manager %}
+        <button type="button" class="btn btn-success btn-sm" id="add-item"
+                onclick="window.location.href='{% url 'orders:items_search' order.id %}'">
+            <i class="bi bi-plus"></i> Найти на складе
+        </button>
+        {% endif %}
+    </div>
+    {% if order.order_item_list.all|length > 0 %}
+    <table class="table">
+        <thead class="thead-dark">
+        <tr>
+            <th></th>
+            <th>Код</th>
+            <th>Производитель</th>
+            <th>Наименование</th>
+            <th>Цена</th>
+            <th>Кол-во</th>
+            <th>Срок доставки</th>
+            <th>Склад</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in order.order_item_list.all %}
+        <tr data-item-id="{{ item.id }}">
+            <td>
+                <input type="checkbox" class="form-check-input item-select-checkbox" data-item-id="{{ item.id }}">
+            </td>
+            <th scope="row">{{ item.article_number }}</th>
+            <td>{{ item.manufacture }}</td>
+            <td>{{ item.name }}</td>
+            <td data-item-price>{{ item.price }}</td>
+            <td>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="number" inputmode="numeric" class="form-control form-control-sm count-input"
+                           style="width:5rem" min="1" step="1"
+                           value="{{ item.count }}" data-original-count="{{ item.count }}">
+                    <button type="button" class="btn btn-sm btn-primary apply-count-btn d-none">
+                        <span class="apply-count-text">Применить</span>
+                        <span class="spinner-border spinner-border-sm d-none apply-count-spinner"></span>
+                    </button>
+                </div>
+                <div class="text-danger small count-error d-none"></div>
+            </td>
+            <td>{{ item.delivery_time }}</td>
+            <td>{{ item.warehouse }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div>Пока нет ни одной позиции</div>
+    {% endif %}
+</div>

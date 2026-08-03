@@ -80,6 +80,7 @@ class OrderIsAvailableMixin:
         self.order = self.get_order(request, *args, **kwargs)
         if not self.order_is_available_for_me(request):
             return JsonResponse({"error": "Вы не можете работать над этим заказом"}, status=403)
+        return super().dispatch(request, *args, **kwargs)
 
 
 class OrderIsFree(OrderIsAvailableMixin):
@@ -90,12 +91,6 @@ class OrderIsFree(OrderIsAvailableMixin):
 class OrderIsMine(OrderIsAvailableMixin):
     def order_is_available_for_me(self, request):
         return self.order.manager and self.order.manager.user == request.user
-
-
-class OrderIsFreeOrMine(OrderIsFree, OrderIsMine):
-    def order_is_available_for_me(self, request):
-        return (OrderIsFree.order_is_available_for_me(self, request)
-                or OrderIsMine.order_is_available_for_me(self, request))
 
 
 class OrderListView(ManagerMixin, generic.ListView):
@@ -256,14 +251,16 @@ class ItemsFullSearchResult(ManagerMixin, View):
             return JsonResponse({"error": "Поставщик недоступен"}, status=502)
 
 
-class OrderItemAdd(ManagerMixin, OrderIsFreeOrMine, View):
-    def post(self, request):
+class OrderItemAdd(ManagerMixin, OrderIsMine, View):
+    def post(self, request, pk):
         try:
             data = json.loads(request.body.decode('utf-8'))
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, 400)
 
         article_number = data.get("article_number", "").strip()
+        if not article_number:
+            return JsonResponse({"error": "article_number is required."}, status=400)
         internal_art_id = data.get("internal_art_id", "").strip()
         manufacture = data.get("manufacture", "").strip()
         name = data.get("name", "").strip()
@@ -296,9 +293,6 @@ class OrderItemAdd(ManagerMixin, OrderIsFreeOrMine, View):
             price=price,
             status=OrderItem.Statuses.DEFAULT
         )
-
-        if not article_number:
-            return JsonResponse({"error": "article_number is required."}, status=400)
 
         return JsonResponse({
             "success": True,
@@ -345,8 +339,8 @@ class OrderItemAdd(ManagerMixin, OrderIsFreeOrMine, View):
         return item
 
 
-class OrderItemBulkRemove(ManagerMixin, OrderIsFreeOrMine, View):
-    def delete(self, request):
+class OrderItemBulkRemove(ManagerMixin, OrderIsMine, View):
+    def delete(self, request, pk):
         try:
             data = json.loads(request.body.decode('utf-8'))
         except json.JSONDecodeError:
@@ -368,17 +362,17 @@ class OrderItemBulkRemove(ManagerMixin, OrderIsFreeOrMine, View):
         return JsonResponse({"success": True, "deleted": deleted_count})
 
 
-class OrderItemUpdateCount(ManagerMixin, OrderIsFreeOrMine, View):
+class OrderItemUpdateCount(ManagerMixin, OrderIsMine, View):
     def get_item(self, request, *args, **kwargs):
         return get_object_or_404(OrderItem, pk=kwargs['item_pk'])
 
     def dispatch(self, request, *args, **kwargs):
-        self.item = self.get_item(request, *args, kwargs)
+        self.item = self.get_item(request, *args, **kwargs)
         if self.item.status != OrderItem.Statuses.DEFAULT:
             return JsonResponse({"error": "Позиция не может быть изменена"}, status=422)
         return super().dispatch(request, *args, **kwargs)
 
-    def patch(self, request):
+    def patch(self, request, pk, item_pk):
         if self.item.status != OrderItem.Statuses.DEFAULT:
             return JsonResponse({"error": "Позиция не может быть изменена"})
         try:

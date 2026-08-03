@@ -1,5 +1,5 @@
 const CSRF_TOKEN = "{{ csrf_token }}";
-const UPDATE_COUNT_URL_TEMPLATE = "{% url 'orders:update_order_item_count' 0 %}";
+const UPDATE_COUNT_URL_TEMPLATE = "{% url 'orders:update_order_item_count' order.id 0 %}";
 const REMOVE_ITEMS_URL = "{% url 'orders:remove_order_items' order.id %}";
 
 function updateCountUrl(itemId) {
