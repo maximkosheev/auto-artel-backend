@@ -16,6 +16,7 @@ from django.views.generic.edit import FormMixin
 from auto_artel.broker import broker
 from parts_providers import ProviderApiError
 from utils.date_utils import parse_date
+from .errors import BusinessError
 from .forms import OrderForm, OrderNewForm
 from .models import Order, Manager, OrderItem
 
@@ -369,7 +370,8 @@ class OrderItemUpdateCount(ManagerMixin, OrderIsMine, View):
     def dispatch(self, request, *args, **kwargs):
         self.item = self.get_item(request, *args, **kwargs)
         if self.item.status != OrderItem.Statuses.DEFAULT:
-            return JsonResponse({"error": "Позиция не может быть изменена"}, status=422)
+            return JsonResponse({"error": "Позиция находится на согласовании, поэтому не может быть изменена"},
+                                status=422)
         return super().dispatch(request, *args, **kwargs)
 
     def patch(self, request, pk, item_pk):
@@ -400,12 +402,20 @@ class OrderItemUpdateCount(ManagerMixin, OrderIsMine, View):
         })
 
 
+def order_has_items_in_agreement(order_id):
+    return OrderItem.objects.filter(order_id=order_id, status=OrderItem.Statuses.AGREEMENT).exists()
+
+
 class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
-    def post(self, request):
+    def post(self, request, pk):
         try:
             data = json.loads(request.body.decode('utf-8'))
+            if order_has_items_in_agreement(pk):
+                raise BusinessError("В заказе уже есть позиции на согласовании")
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
+        except BusinessError as ex:
+            return JsonResponse({"error": f"{ex}"}, status=422)
 
         item_ids = data.get("item_ids")
         if not isinstance(item_ids, list) or not item_ids:
@@ -416,10 +426,47 @@ class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid item id."}, status=400)
 
+        updated_count, _ = (OrderItem.objects
+                            .filter(order=self.order, id__in=item_ids)
+                            .update(status=OrderItem.Statuses.AGREEMENT))
 
-        #TODO!
-        deleted_count, _ = OrderItem.objects.filter(order=self.order,
-                                                    id__in=item_ids,
-                                                    status=OrderItem.Statuses.DEFAULT).delete()
+        return JsonResponse({"success": True, "updated": updated_count})
 
-        return JsonResponse({"success": True, "deleted": deleted_count})
+
+class OrderItemsAgreementConfirmView(ManagerMixin, View):
+    """
+    Страница подтверждения отправки выбранных позиций заказа на согласование.
+    Доступ ограничен только принадлежностью к группе 'manager' (как и у остальных
+    страничных, не JSON-only, view в этом модуле, например PartsSearchView) —
+    владение заказом дополнительно проверяется на мутирующей ручке OrderItemBulkAgreement.
+    """
+    def get(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        item_ids_param = request.GET.get('item_ids', '')
+        try:
+            item_ids = [int(item_id) for item_id in item_ids_param.split(',') if item_id]
+        except ValueError:
+            item_ids = []
+
+        if not item_ids:
+            messages.error(request, 'Не выбрано ни одной позиции для согласования')
+            return redirect(reverse('orders:detail', kwargs={'pk': pk}))
+
+        if order_has_items_in_agreement(pk):
+            messages.error(request, 'В заказе уже есть позиции отправленные на согласование')
+            return redirect(reverse('orders:detail', kwargs={'pk': pk}))
+
+        selected_items = list(OrderItem.objects.filter(order=order, id__in=item_ids))
+        if not selected_items:
+            messages.error(request, 'Выбранные позиции не найдены в заказе')
+            return redirect(reverse('orders:detail', kwargs={'pk': pk}))
+
+        total_cost = sum((item.price for item in selected_items), Decimal('0'))
+
+        return render(request, 'orders/order_agreement_confirm.html', {
+            'order': order,
+            'selected_items': selected_items,
+            'total_count': len(selected_items),
+            'total_cost': total_cost,
+        })

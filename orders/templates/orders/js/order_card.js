@@ -1,6 +1,7 @@
 const CSRF_TOKEN = "{{ csrf_token }}";
 const UPDATE_COUNT_URL_TEMPLATE = "{% url 'orders:update_order_item_count' order.id 0 %}";
 const REMOVE_ITEMS_URL = "{% url 'orders:remove_order_items' order.id %}";
+const AGREEMENT_CONFIRM_URL = "{% url 'orders:agreement_confirm' order.id %}";
 
 function updateCountUrl(itemId) {
   return UPDATE_COUNT_URL_TEMPLATE.replace('/0/', `/${itemId}/`);
@@ -110,16 +111,28 @@ const confirmRemoveItemsBtn = document.getElementById('confirmRemoveItemsBtn');
 const confirmRemoveText = confirmRemoveItemsBtn.querySelector('.confirm-remove-text');
 const confirmRemoveSpinner = confirmRemoveItemsBtn.querySelector('.confirm-remove-spinner');
 
+/* ── Bulk send selected items to agreement ── */
+const agreementSelectedBtn = document.getElementById('agreementSelectedBtn');
+const agreementWarningModalEl = document.getElementById('agreementWarningModal');
+const agreementWarningModal = new bootstrap.Modal(agreementWarningModalEl);
+
 function getSelectedCheckboxes() {
   return Array.from(document.querySelectorAll('.item-select-checkbox:checked'));
 }
 
-function refreshRemoveSelectedVisibility() {
-  removeSelectedBtn.classList.toggle('d-none', getSelectedCheckboxes().length === 0);
+function refreshSelectionButtonsVisibility() {
+  const hasSelection = getSelectedCheckboxes().length > 0;
+  removeSelectedBtn.classList.toggle('d-none', !hasSelection);
+  agreementSelectedBtn.classList.toggle('d-none', !hasSelection);
+}
+
+function orderHasItemsInAgreement() {
+  return Array.from(document.querySelectorAll('tr[data-item-id]'))
+    .some((row) => row.dataset.status === 'AGREEMENT');
 }
 
 document.querySelectorAll('.item-select-checkbox').forEach((checkbox) => {
-  checkbox.addEventListener('change', refreshRemoveSelectedVisibility);
+  checkbox.addEventListener('change', refreshSelectionButtonsVisibility);
 });
 
 removeSelectedBtn.addEventListener('click', () => {
@@ -159,7 +172,7 @@ confirmRemoveItemsBtn.addEventListener('click', async () => {
 
     selected.forEach((cb) => cb.closest('tr[data-item-id]').remove());
     removeItemsModal.hide();
-    refreshRemoveSelectedVisibility();
+    refreshSelectionButtonsVisibility();
   } catch (err) {
     alert('Сетевая ошибка. Попробуйте снова.');
   } finally {
@@ -167,4 +180,17 @@ confirmRemoveItemsBtn.addEventListener('click', async () => {
     confirmRemoveText.classList.remove('d-none');
     confirmRemoveSpinner.classList.add('d-none');
   }
+});
+
+agreementSelectedBtn.addEventListener('click', () => {
+  const selected = getSelectedCheckboxes();
+  if (selected.length === 0) return;
+
+  if (orderHasItemsInAgreement()) {
+    agreementWarningModal.show();
+    return;
+  }
+
+  const itemIds = selected.map((cb) => cb.dataset.itemId).join(',');
+  window.location.href = `${AGREEMENT_CONFIRM_URL}?item_ids=${itemIds}`;
 });

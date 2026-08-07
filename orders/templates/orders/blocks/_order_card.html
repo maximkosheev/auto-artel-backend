@@ -7,6 +7,10 @@
                 <img src="{% static 'images/trash_bin.svg' %}" width="16" height="16" alt="">
                 Удалить
             </button>
+            <button type="button" id="agreementSelectedBtn" class="btn btn-primary btn-sm d-none">
+                <i class="bi bi-send"></i>
+                На согласование
+            </button>
         </div>
         {% if order.manager %}
         <button type="button" class="btn btn-success btn-sm" id="add-item"
@@ -31,7 +35,7 @@
         </thead>
         <tbody>
         {% for item in order.order_item_list.all %}
-        <tr data-item-id="{{ item.id }}">
+        <tr data-item-id="{{ item.id }}" data-status="{{ item.status }}">
             <td>
                 <input type="checkbox" class="form-check-input item-select-checkbox" data-item-id="{{ item.id }}">
             </td>

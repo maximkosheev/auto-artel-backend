@@ -9,7 +9,8 @@ from .views import (OrderListView,
                     AssortmentSearchResult,
                     ItemsFullSearchResult,
                     PartsSearchView,
-                    OrderItemBulkAgreement)
+                    OrderItemBulkAgreement,
+                    OrderItemsAgreementConfirmView)
 
 app_name = 'orders'
 
@@ -21,6 +22,7 @@ urlpatterns = [
     path('<int:pk>/items-search/add', OrderItemAdd.as_view(), name='add_order_item'),
     path('<int:pk>/items/remove', OrderItemBulkRemove.as_view(), name='remove_order_items'),
     path('<int:pk>/items/agreement', OrderItemBulkAgreement.as_view(), name='agreement_order_items'),
+    path('<int:pk>/items/agreement/confirm/', OrderItemsAgreementConfirmView.as_view(), name='agreement_confirm'),
     path('<int:pk>/items/<int:item_pk>/update-count', OrderItemUpdateCount.as_view(), name='update_order_item_count'),
     path('parts/search/', PartsSearchView.as_view(), name='parts_search'),
     path('items-search/results', AssortmentSearchResult.as_view(), name='assortment_search_results'),
