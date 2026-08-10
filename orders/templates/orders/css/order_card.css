@@ -1,0 +1,15 @@
+.order-item-status.default {
+    background-color: #e0e0e0 !important;
+}
+
+.order-item-status.agreement {
+    background-color: #f39c12 !important;
+}
+
+.order-item-status.ordered {
+    background-color: #28a745 !important;
+}
+
+.order-item-status.half_ordered {
+    background-color: #FD7C6E !important;
+}

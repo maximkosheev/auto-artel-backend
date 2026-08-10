@@ -375,8 +375,6 @@ class OrderItemUpdateCount(ManagerMixin, OrderIsMine, View):
         return super().dispatch(request, *args, **kwargs)
 
     def patch(self, request, pk, item_pk):
-        if self.item.status != OrderItem.Statuses.DEFAULT:
-            return JsonResponse({"error": "Позиция не может быть изменена"})
         try:
             data = json.loads(request.body.decode('utf-8'))
             count = int(data.get("count"))
@@ -423,23 +421,21 @@ class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
 
         try:
             item_ids = [int(item_id) for item_id in item_ids]
+            if OrderItem.objects.filter(id__in=item_ids).exclude(status=OrderItem.Statuses.DEFAULT).exists():
+                raise BusinessError("Некоторые позиции не могут быть отправлены на согласование")
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid item id."}, status=400)
+        except BusinessError as ex:
+            return JsonResponse({"error": f"{ex}"}, status=422)
 
         updated_count, _ = (OrderItem.objects
-                            .filter(order=self.order, id__in=item_ids)
+                            .filter(order=self.order, id__in=item_ids, status=OrderItem.Statuses.DEFAULT)
                             .update(status=OrderItem.Statuses.AGREEMENT))
 
         return JsonResponse({"success": True, "updated": updated_count})
 
 
-class OrderItemsAgreementConfirmView(ManagerMixin, View):
-    """
-    Страница подтверждения отправки выбранных позиций заказа на согласование.
-    Доступ ограничен только принадлежностью к группе 'manager' (как и у остальных
-    страничных, не JSON-only, view в этом модуле, например PartsSearchView) —
-    владение заказом дополнительно проверяется на мутирующей ручке OrderItemBulkAgreement.
-    """
+class OrderItemsAgreementConfirmView(ManagerMixin, OrderIsMine, View):
     def get(self, request, pk):
         order = get_object_or_404(Order, pk=pk)
 
