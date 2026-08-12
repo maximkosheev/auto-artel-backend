@@ -3,18 +3,21 @@ import os
 from json import JSONDecodeError
 
 import pydantic
-
 import requests
+from django.core.cache import cache
 from pydantic import ConfigDict
+from datetime import datetime
 
 from . import ProviderApiError
-from .parts_provider import AutoPartsProvider, SearchResultItem
+from .parts_provider import AutoPartsProvider, AssortmentSearchResultItem, SearchResultItem
 
 logger = logging.getLogger(__name__)
 
 USER_VKORG_LIST_URL = 'http://ws.armtek.ru/api/ws_user/getUserVkorgList?format=json'
 USER_INFO_URL = 'http://ws.armtek.ru/api/ws_user/getUserInfo?format=json'
 SEARCH_URL = 'http://ws.armtek.ru/api/ws_search/search?format=json'
+ASSORTMENT_SEARCH_URL = 'http://ws.armtek.ru/api/ws_search/assortment_search?format=json'
+STORE_URL = 'http://ws.armtek.ru/api/ws_user/getStoreList?format=json'
 
 
 class ArmTekProvider(AutoPartsProvider):
@@ -45,7 +48,7 @@ class ArmTekProvider(AutoPartsProvider):
                 self._vkorg = api_response.RESP[0].VKORG
                 return self._vkorg
             except pydantic.ValidationError as e:
-                logger.error(f"Unexpected response format: {e}")
+                logger.error(f"Unexpected response format: {e}", exc_info=True)
                 raise ProviderApiError('Ошибка обработки ответа от поставщика')
         else:
             logger.error(f"ArmTek response status: {response.status_code}, body: {response.json()}")
@@ -68,7 +71,7 @@ class ArmTekProvider(AutoPartsProvider):
                 self._userInfo = api_response.RESP.STRUCTURE
                 return self._userInfo
             except pydantic.ValidationError as e:
-                logger.error(f"Unexpected response format: {e}")
+                logger.error(f"Unexpected response format: {e}", exc_info=True)
                 raise ProviderApiError('Ошибка обработки ответа от поставщика')
         else:
             logger.error(f"ArmTek response status: {response.status_code}, body: {response.json()}")
@@ -78,16 +81,50 @@ class ArmTekProvider(AutoPartsProvider):
     def buyer(self):
         return self.user_info.RG_TAB[0].KUNNR
 
-    def search(self, pin):
-        logger.debug(f"ArmTek search for pin: {pin}")
-        response = self.session.post(SEARCH_URL, data={
+    def assortment_search(self, pin):
+        logger.debug(f"ArmTek assortment_search for pin: {pin}")
+        response = self.session.post(ASSORTMENT_SEARCH_URL, data={
             'VKORG': self.vkorg,
-            'KUNNR_RG': self.buyer,
-            'PIN': pin
+            'PIN': pin,
         })
         if response.status_code == 200:
             try:
                 response_data = response.json()
+                logger.debug(f"ArmTek assortment_search response: {response_data}")
+                api_response = AssortmentSearchResponse.model_validate(response_data)
+                if isinstance(api_response.RESP, list):
+                    return [self.__map_assortment_item_to_result(item) for item in api_response.RESP]
+                return []
+            except JSONDecodeError as ex:
+                logger.error(f"Parse error occurred: {ex}, when parsing data: {response.text}", exc_info=True)
+                raise ProviderApiError('Ошибка обработки ответа от поставщика')
+            except pydantic.ValidationError as e:
+                logger.error(f"Unexpected response format: {e}", exc_info=True)
+                raise ProviderApiError('Ошибка обработки ответа от поставщика')
+        else:
+            logger.error(f"ArmTek response status: {response.status_code}, body: {response.text}")
+            raise ProviderApiError('Ошибка запроса данных у поставщика')
+
+    def __map_assortment_item_to_result(self, item):
+        result = AssortmentSearchResultItem()
+        result.article_number = item.PIN
+        result.manufacture = item.BRAND
+        result.name = item.NAME
+        return result
+
+    def search(self, pin, manufacture):
+        logger.debug(f"ArmTek search for pin: {pin}, manufacture: {manufacture}")
+        response = self.session.post(SEARCH_URL, data={
+            'VKORG': self.vkorg,
+            'KUNNR_RG': self.buyer,
+            'PIN': pin,
+            'BRAND': manufacture,
+            'QUERY_TYPE': '2'
+        })
+        if response.status_code == 200:
+            try:
+                response_data = response.json()
+                logger.debug(f"ArmTek search response: {response_data}")
                 api_response = SearchPinResponse.model_validate(response_data)
                 if type(api_response.RESP) is list:
                     return list(map(lambda RESP_Item:
@@ -96,10 +133,10 @@ class ArmTekProvider(AutoPartsProvider):
                 else:
                     return []
             except JSONDecodeError as ex:
-                logger.error(f"Parse error occurred: {ex}, when parsing data: {response.json()}")
+                logger.error(f"Parse error occurred: {ex}, when parsing data: {response.text}", exc_info=True)
                 raise ProviderApiError('Ошибка запроса данных у поставщика')
             except Exception as e:
-                logger.error(f"Случилась ошибка: {e}")
+                logger.error(f"Случилась ошибка: {e}", exc_info=True)
                 raise ProviderApiError('Ошибка запроса данных у поставщика')
         else:
             logger.error(f"ArmTek response status: {response.status_code}, body: {response.json()}")
@@ -107,14 +144,20 @@ class ArmTekProvider(AutoPartsProvider):
 
     def __map_search_pin_item_to_search_result_item(self, search_pin_item):
         result = SearchResultItem()
-        result.article_number = search_pin_item.ARTID
+        result.internal_art_id = search_pin_item.ARTID
+        result.article_number = search_pin_item.PIN
         result.manufacture = search_pin_item.BRAND
         result.name = search_pin_item.NAME
         result.price = search_pin_item.PRICE
         result.count = search_pin_item.RVALUE
-        result.delivery_time = search_pin_item.DLVDT
-        result.warehouse_location = search_pin_item.KEYZAK
+        if search_pin_item.DLVDT:
+            result.delivery_time = datetime.strptime(search_pin_item.DLVDT, '%Y%m%d%H%M%S')
+        result.warehouse_location = self.__map_warehouse_code(search_pin_item.KEYZAK)
         return result
+
+    def __map_warehouse_code(self, warehouse_code):
+        warehouse_data = WarehouseData.model_validate(cache.get(warehouse_code, {'SKLNAME': 'Неизвестный склад'}))
+        return warehouse_data.SKLNAME
 
 
 class UserVKorg(pydantic.BaseModel):
@@ -231,3 +274,24 @@ class SearchPinResponse(ArmTekResponse):
     model_config = ConfigDict(extra='ignore')
 
     RESP: list[SearchPinItem] | SearchPinMsg
+
+
+class WarehouseData(pydantic.BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    SKLNAME: str
+
+
+class AssortmentSearchItem(pydantic.BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    PIN: str | None = None
+    BRAND: str | None = None
+    NAME: str | None = None
+
+
+class AssortmentSearchResponse(ArmTekResponse):
+    model_config = ConfigDict(extra='ignore')
+
+    RESP: list[AssortmentSearchItem] | SearchPinMsg
+

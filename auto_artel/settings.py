@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import datetime
+import json
 import os
 from pathlib import Path
 
@@ -47,7 +48,8 @@ INSTALLED_APPS = [
     'home',
     'api',
     'orders',
-    'chat'
+    'chat',
+    'parts_providers',
 ]
 
 MIDDLEWARE = [
@@ -111,6 +113,19 @@ BROKER = {
     'URI': os.getenv('RABBITMQ_URI')
 }
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": f"redis://{os.getenv('REDIS_USER')}:{os.getenv('REDIS_USER_PASSWORD')}@{os.getenv('REDIS_URL', 'localhost:6379')}",
+        "KEY_FUNCTION": "auto_artel.core.cache.base.simple_key_function",
+        "OPTIONS": {
+            "db": f"{os.getenv('REDIS_DB', 0)}",
+            "pool_class": "redis.BlockingConnectionPool",
+            "serializer": "auto_artel.core.cache.serializers.JsonCacheSerializer"
+        },
+    }
+}
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -164,8 +179,8 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 
 AUTO_PARTS_PROVIDERS = {
-    'arm_teck': {
-        'name': 'ARMTECK',
+    'armtek': {
+        'name': 'ARMTEK',
         'instance': ArmTekProvider(),
         'enabled': True
     }

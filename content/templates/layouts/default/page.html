@@ -10,9 +10,10 @@
 
     <link rel="icon" href="{% static 'favicon.ico' %}">
 
-    <title>The best service</title>
+    <title>{% block page-title %}{% endblock %}</title>
 
     {% bootstrap_css %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
 
     {% block extra_style %}
@@ -34,6 +35,9 @@
             {% if request.user.is_authenticated %}
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'orders:list' %}">Заказы</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'orders:parts_search' %}">Поиск запчастей</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'chat:list' %}">Сообщения</a>

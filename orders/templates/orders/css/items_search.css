@@ -1,0 +1,34 @@
+#assortmentTable tbody tr {
+border-bottom: 1px solid #dee2e6;
+cursor: pointer;
+transition: background-color 0.15s ease;
+}
+
+#assortmentTable tbody tr:last-child {
+border-bottom: none;
+}
+
+#assortmentTable tbody tr:hover td {
+background-color: #cfe2ff;
+color: #0a58ca;
+text-decoration: underline;
+}
+
+.sortable-col {
+cursor: pointer;
+user-select: none;
+white-space: nowrap;
+}
+
+.sortable-col:hover {
+background-color: rgba(15, 33, 200, 0.7);
+}
+
+.sortable-col .sort-icon {
+opacity: .5;
+}
+
+.sortable-col.sort-asc .sort-icon,
+.sortable-col.sort-desc .sort-icon {
+opacity: 1;
+}
