@@ -2,14 +2,14 @@ from .settings import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = ['auto-artel.madmax-code.ru']
+ALLOWED_HOSTS = [os.getenv('ALLOWED_HOST')]
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://auto-artel.madmax-code.ru'
+    f'https://{os.getenv('ALLOWED_HOST')}'
 ]
 
 CORS_ORIGIN_WHITELIST = [
-    'https://auto-artel.madmax-code.ru'
+    f'https://{os.getenv('ALLOWED_HOST')}'
 ]
 
 LOGGING = {
