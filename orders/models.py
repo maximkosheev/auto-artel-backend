@@ -100,6 +100,9 @@ class OrderItem(models.Model):
     purchase_price = models.DecimalField(null=True, max_digits=19, decimal_places=2,
                                          help_text='Цена у поставщица (цена закупки)')
 
+    def client_short_str(self):
+        return f"{self.name};{self.manufacture}; Кол-во:{self.count}; Цена:{self.price}"
+
 
 
 

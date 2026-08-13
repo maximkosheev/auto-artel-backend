@@ -428,9 +428,19 @@ class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
         except BusinessError as ex:
             return JsonResponse({"error": f"{ex}"}, status=422)
 
-        updated_count, _ = (OrderItem.objects
+        updated_count = (OrderItem.objects
                             .filter(order=self.order, id__in=item_ids, status=OrderItem.Statuses.DEFAULT)
                             .update(status=OrderItem.Statuses.AGREEMENT))
+
+        items_info = "\n".join(map(lambda item: f"- {item.client_short_str()}",
+                                   list(OrderItem.objects.filter(id__in=item_ids))))
+
+        broker.send_notification_message({
+            'to': self.order.client.id,
+            'to_telegram_id': self.order.client.telegram_id,
+            'text': f"Требуется согласование по вашему заказу {self.order.id} от {self.order.created}:\n"
+                    f"{items_info}"
+        })
 
         return JsonResponse({"success": True, "updated": updated_count})
 
@@ -456,6 +466,10 @@ class OrderItemsAgreementConfirmView(ManagerMixin, OrderIsMine, View):
         selected_items = list(OrderItem.objects.filter(order=order, id__in=item_ids))
         if not selected_items:
             messages.error(request, 'Выбранные позиции не найдены в заказе')
+            return redirect(reverse('orders:detail', kwargs={'pk': pk}))
+
+        if any(item.status != OrderItem.Statuses.DEFAULT for item in selected_items):
+            messages.error(request, 'Выбранные позиции не могут быть отправлены на согласование')
             return redirect(reverse('orders:detail', kwargs={'pk': pk}))
 
         total_cost = sum((item.price for item in selected_items), Decimal('0'))

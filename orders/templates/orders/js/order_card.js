@@ -113,8 +113,6 @@ const confirmRemoveSpinner = confirmRemoveItemsBtn.querySelector('.confirm-remov
 
 /* ── Bulk send selected items to agreement ── */
 const agreementSelectedBtn = document.getElementById('agreementSelectedBtn');
-const agreementWarningModalEl = document.getElementById('agreementWarningModal');
-const agreementWarningModal = new bootstrap.Modal(agreementWarningModalEl);
 
 function getSelectedCheckboxes() {
   return Array.from(document.querySelectorAll('.item-select-checkbox:checked'));
@@ -124,11 +122,6 @@ function refreshSelectionButtonsVisibility() {
   const hasSelection = getSelectedCheckboxes().length > 0;
   removeSelectedBtn.classList.toggle('d-none', !hasSelection);
   agreementSelectedBtn.classList.toggle('d-none', !hasSelection);
-}
-
-function orderHasItemsInAgreement() {
-  return Array.from(document.querySelectorAll('tr[data-item-id]'))
-    .some((row) => row.dataset.status === 'AGREEMENT');
 }
 
 document.querySelectorAll('.item-select-checkbox').forEach((checkbox) => {
@@ -185,11 +178,6 @@ confirmRemoveItemsBtn.addEventListener('click', async () => {
 agreementSelectedBtn.addEventListener('click', () => {
   const selected = getSelectedCheckboxes();
   if (selected.length === 0) return;
-
-  if (orderHasItemsInAgreement()) {
-    agreementWarningModal.show();
-    return;
-  }
 
   const itemIds = selected.map((cb) => cb.dataset.itemId).join(',');
   window.location.href = `${AGREEMENT_CONFIRM_URL}?item_ids=${itemIds}`;
