@@ -62,5 +62,17 @@ class Broker:
         finally:
             self.close()
 
+    def send_order_agreement_notification(self, client, order, agreement_link, due_to):
+        due_to_str = due_to.strftime("%d/%m/%Y, %H:%M:%S")
+        self.send_notification_message({
+            'to': client.id,
+            'to_telegram_id': client.telegram_id,
+            'type': 'ORDER_AGREEMENT_REQUIRED',
+            'text': f"Требуется согласие по вашему заказу #{order.id} от {order.created_date_formatted()}.\n"
+                    f"Для согласования перейдите по ссылке ниже. Ссылка действует до {due_to_str}Мск",
+            'details': {
+                'link': agreement_link
+            }
+        })
 
 broker = Broker()

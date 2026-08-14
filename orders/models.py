@@ -73,6 +73,18 @@ class Order(models.Model):
     def __str__(self):
         return f'Заказ #{self.id} ({self.status})'
 
+    @property
+    def created_date(self):
+        return self.created.date()
+
+    def created_date_formatted(self, template: str | None = None):
+        if self.created_date is not None:
+            if template is not None:
+                return self.created_date.strftime(template)
+            else:
+                return self.created_date.isoformat()
+        return None
+
 
 class OrderItem(models.Model):
     class Statuses(models.TextChoices):

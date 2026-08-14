@@ -29,6 +29,11 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', default=get_random_secret_key())
 
+# Dedicated signing key for orders.tokens.OrderLinkToken (passwordless
+# "view your order" links). Intentionally separate from SECRET_KEY / the
+# simplejwt signing key used for API access/refresh tokens.
+ORDER_LINK_SECRET_KEY = os.getenv('ORDER_LINK_SECRET_KEY')
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -153,6 +158,8 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+MSK_ZONE = datetime.timezone(datetime.timedelta(hours=3))
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
