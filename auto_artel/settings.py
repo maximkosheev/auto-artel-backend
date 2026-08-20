@@ -36,6 +36,8 @@ ORDER_LINK_SECRET_KEY = os.getenv('ORDER_LINK_SECRET_KEY')
 
 # Application definition
 
+BASE_URL = os.getenv('BASE_URL')
+
 INSTALLED_APPS = [
     'daphne',
     'django.contrib.admin',

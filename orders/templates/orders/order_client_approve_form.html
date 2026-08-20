@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Согласование заказа №{{ order.id }}</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(160deg, #f7f8fa 0%, #eef0f3 100%);
+            color: #333;
+            padding: 24px;
+            min-height: 100%;
+        }
+
+        .page {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 12px 32px rgba(20, 20, 30, 0.08);
+            padding: 32px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #222;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #8b909a;
+            margin-bottom: 24px;
+        }
+
+        dl.summary {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            row-gap: 10px;
+            column-gap: 12px;
+            font-size: 14px;
+        }
+
+        dl.summary dt {
+            color: #8b909a;
+        }
+
+        dl.summary dd {
+            color: #333;
+        }
+
+        .requirements {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eef0f3;
+            font-size: 14px;
+            line-height: 1.55;
+            color: #5a5f6a;
+            white-space: pre-wrap;
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #222;
+            margin-bottom: 16px;
+        }
+
+        .alert {
+            background: #fdecea;
+            color: #8a2c22;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        table.items {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        table.items th,
+        table.items td {
+            text-align: left;
+            padding: 10px 8px;
+            border-bottom: 1px solid #eef0f3;
+        }
+
+        table.items th {
+            color: #8b909a;
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
+
+        table.items td.num,
+        table.items th.num {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        table.items tfoot td {
+            border-bottom: none;
+            padding-top: 16px;
+            font-weight: 600;
+            color: #222;
+        }
+
+        .actions {
+            text-align: center;
+            margin-top: 28px;
+        }
+
+        button.submit {
+            appearance: none;
+            border: none;
+            cursor: pointer;
+            background: #2f6fed;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            padding: 14px 40px;
+            border-radius: 12px;
+            transition: background .15s ease;
+        }
+
+        button.submit:hover {
+            background: #255ecb;
+        }
+
+        button.submit:active {
+            transform: translateY(1px);
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 20px;
+            }
+
+            dl.summary {
+                grid-template-columns: 110px 1fr;
+            }
+
+            table.items {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page">
+        <div class="card">
+            <h1>Заказ №{{ order.id }}</h1>
+            <div class="subtitle">Пожалуйста, проверьте позиции и подтвердите заказ</div>
+
+            <dl class="summary">
+                <dt>Клиент</dt>
+                <dd>{{ order.client.name }}</dd>
+                <dt>Дата заказа</dt>
+                <dd>{{ order.created|date:"d.m.Y" }}</dd>
+            </dl>
+
+            {% if order.initial_requirements %}
+                <div class="requirements">{{ order.initial_requirements }}</div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <h2>Позиции на согласование</h2>
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="hash" value="{{ hash }}">
+
+                <table class="items">
+                    <thead>
+                        <tr>
+                            <th>Наименование</th>
+                            <th>Артикул</th>
+                            <th>Производитель</th>
+                            <th class="num">Кол-во</th>
+                            <th class="num">Цена</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                            <tr>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.article_number }}</td>
+                                <td>{{ item.manufacture }}</td>
+                                <td class="num">{{ item.count }}</td>
+                                <td class="num">{{ item.price }}&nbsp;₽</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4">Итого ({{ total_count }})</td>
+                            <td class="num">{{ total_cost }}&nbsp;₽</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="actions">
+                    <button type="submit" class="submit">Согласовать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

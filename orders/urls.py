@@ -11,14 +11,14 @@ from .views import (OrderListView,
                     PartsSearchView,
                     OrderItemBulkAgreement,
                     OrderItemsAgreementConfirmView,
-                    OrderValidateView)
+                    OrderClientApproveView)
 
 app_name = 'orders'
 
 
 urlpatterns = [
     path('', OrderListView.as_view(), name='list'),
-    path('/validate', OrderValidateView.as_view(), name='validate'),
+    path('client-approve/', OrderClientApproveView.as_view(), name='client_approve'),
     path('<int:pk>/', OrderDetailView.as_view(), name='detail'),
     path('<int:pk>/items-search', OrderItemSearch.as_view(), name='items_search'),
     path('<int:pk>/items-search/add', OrderItemAdd.as_view(), name='add_order_item'),

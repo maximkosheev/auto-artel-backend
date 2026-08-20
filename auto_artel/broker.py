@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class Broker:
     CHAT_QUEUE_NAME = 'chat_messages'
-    NOTIFICATION_QUEUE_NAME = 'notification_messages'
+    NOTIFICATION_QUEUE_NAME = 'automatic_notifications'
 
     def __init__(self):
         self.connection_properties = URLParameters(settings.BROKER['URI'])
@@ -62,17 +62,29 @@ class Broker:
         finally:
             self.close()
 
+    def send_order_change_status(self, client, order):
+        self.send_notification_message({
+            'to': client.id,
+            'to_telegram_id': client.telegram_id,
+            'type': 'TEXT',
+            'data': f"Статус вашего заказа #{order.id} от {order.created_date_formatted()} изменился. "
+                    f"Новый статус <b>{order.get_client_status_display()}</b>\n"
+        })
+
     def send_order_agreement_notification(self, client, order, agreement_link, due_to):
         due_to_str = due_to.strftime("%d/%m/%Y, %H:%M:%S")
         self.send_notification_message({
             'to': client.id,
             'to_telegram_id': client.telegram_id,
             'type': 'ORDER_AGREEMENT_REQUIRED',
-            'text': f"Требуется согласие по вашему заказу #{order.id} от {order.created_date_formatted()}.\n"
-                    f"Для согласования перейдите по ссылке ниже. Ссылка действует до {due_to_str}Мск",
-            'details': {
-                'link': agreement_link
+            'data': {
+                'text': f"Требуется согласие по вашему заказу #{order.id} от {order.created_date_formatted()}.\n"
+                        f"Для согласования перейдите по ссылке ниже. Ссылка действует до {due_to_str}Мск",
+                'details': {
+                    'link': agreement_link
+                }
             }
         })
+
 
 broker = Broker()

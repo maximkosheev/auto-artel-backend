@@ -1,9 +1,8 @@
 import json
 import logging
 import math
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal, InvalidOperation
-
-from datetime import date, datetime, timezone, timedelta
 
 from django.conf import settings
 from django.contrib import messages
@@ -16,11 +15,11 @@ from django.views import generic, View
 from django.views.generic.edit import FormMixin
 
 from auto_artel.broker import broker
+from chat.models import ChatMessage
 from parts_providers import ProviderApiError
 from utils.date_utils import parse_date
-from .errors import BusinessError
 from .forms import OrderForm, OrderNewForm
-from .models import Order, Manager, OrderItem
+from .models import Order, Manager, OrderItem, order_valid_for_approval
 from .urls_helper import OrderLinkGenerator, InvalidOrderLinkToken
 
 
@@ -143,30 +142,22 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
     def form_valid(self, form):
         if form.is_valid():
             try:
-                with transaction.atomic():
-                    self.object = form.save(commit=False)
+                self.object = form.save(commit=False)
 
-                    if isinstance(form, OrderNewForm):
-                        self.take_order_into_work()
+                if isinstance(form, OrderNewForm):
+                    self.object.manager = self.get_manager()
+                    self.object.update_status(Order.Statuses.PROCESSING)
+                    self.object.update_client_status(Order.ClientStatuses.ASSIGNED)
+                    broker.send_order_change_status(self.object.client, self.object)
 
-                    self.object.save()
-                    return FormMixin.form_valid(self, form)
+                self.object.save()
+                return FormMixin.form_valid(self, form)
             except Exception as e:
                 messages.error(self.request, f'Ошибка при сохранении заказа: {str(e)}')
                 return self.form_invalid(form)
         else:
             print(f"form or formset are not valid")
             return self.form_invalid(form)
-
-    def take_order_into_work(self):
-        self.object.manager = self.get_manager()
-        self.object.status = Order.Statuses.PROCESSING
-        self.object.client_status = Order.ClientStatuses.ASSIGNED
-        broker.send_notification_message({
-            'to': self.object.client.id,
-            'to_telegram_id': self.object.client.telegram_id,
-            'text': f"Статус вашего заказа изменился. Новый статус {Order.ClientStatuses.ASSIGNED.value}"
-        })
 
     def form_invalid(self, form):
         messages.error(self.request, 'Пожалуйста, исправьте ошибки')
@@ -403,10 +394,6 @@ class OrderItemUpdateCount(ManagerMixin, OrderIsMine, View):
         })
 
 
-def order_has_items_in_agreement(order_id):
-    return OrderItem.objects.filter(order_id=order_id, status=OrderItem.Statuses.AGREEMENT).exists()
-
-
 class OrderItemsAgreementConfirmView(ManagerMixin, OrderIsMine, View):
     """
     Страница подтверждения оправки позиций заказа на согласование клиенту.
@@ -414,9 +401,8 @@ class OrderItemsAgreementConfirmView(ManagerMixin, OrderIsMine, View):
     :param pk: Идентификатор заказа.
     Список идентификаторов позиций, которые отправляются на согласование, передаются через query-parameter items_ids
     """
-    def get(self, request, pk):
-        order = get_object_or_404(Order, pk=pk)
 
+    def get(self, request, pk):
         item_ids_param = request.GET.get('item_ids', '')
         try:
             item_ids = [int(item_id) for item_id in item_ids_param.split(',') if item_id]
@@ -427,23 +413,19 @@ class OrderItemsAgreementConfirmView(ManagerMixin, OrderIsMine, View):
             messages.error(request, 'Не выбрано ни одной позиции для согласования')
             return redirect(reverse('orders:detail', kwargs={'pk': pk}))
 
-        if order_has_items_in_agreement(pk):
-            messages.error(request, 'В заказе уже есть позиции отправленные на согласование')
-            return redirect(reverse('orders:detail', kwargs={'pk': pk}))
-
-        selected_items = list(OrderItem.objects.filter(order=order, id__in=item_ids))
+        selected_items = list(OrderItem.objects.filter(order=self.order, id__in=item_ids))
         if not selected_items:
             messages.error(request, 'Выбранные позиции не найдены в заказе')
             return redirect(reverse('orders:detail', kwargs={'pk': pk}))
 
-        if any(item.status != OrderItem.Statuses.DEFAULT for item in selected_items):
-            messages.error(request, 'Выбранные позиции не могут быть отправлены на согласование')
+        if not order_valid_for_approval(self.order):
+            messages.error(request, 'Заказ не готов к согласованию')
             return redirect(reverse('orders:detail', kwargs={'pk': pk}))
 
         total_cost = sum((item.price for item in selected_items), Decimal('0'))
 
         return render(request, 'orders/order_agreement_confirm.html', {
-            'order': order,
+            'order': self.order,
             'selected_items': selected_items,
             'total_count': len(selected_items),
             'total_cost': total_cost,
@@ -451,42 +433,53 @@ class OrderItemsAgreementConfirmView(ManagerMixin, OrderIsMine, View):
 
 
 class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
+    """
+    Отправка позиций заказа на согласование клиенту
+    """
+
     def post(self, request, pk):
         try:
             data = json.loads(request.body.decode('utf-8'))
-            if order_has_items_in_agreement(pk):
-                raise BusinessError("В заказе уже есть позиции на согласовании")
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
-        except BusinessError as ex:
-            return JsonResponse({"error": f"{ex}"}, status=422)
 
         item_ids = data.get("item_ids")
         if not isinstance(item_ids, list) or not item_ids:
             return JsonResponse({"error": "item_ids is required."}, status=400)
 
         try:
-            item_ids = [int(item_id) for item_id in item_ids]
-            if OrderItem.objects.filter(id__in=item_ids).exclude(status=OrderItem.Statuses.DEFAULT).exists():
-                raise BusinessError("Некоторые позиции не могут быть отправлены на согласование")
+            item_ids = list({int(item_id) for item_id in item_ids})
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid item id."}, status=400)
-        except BusinessError as ex:
-            return JsonResponse({"error": f"{ex}"}, status=422)
 
-        updated_count = (OrderItem.objects
-                            .filter(order=self.order, id__in=item_ids, status=OrderItem.Statuses.DEFAULT)
-                            .update(status=OrderItem.Statuses.AGREEMENT))
+        try:
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(pk=pk)
+                if not order_valid_for_approval(order):
+                    return JsonResponse({"error": "Заказ не готов к согласованию"}, status=422)
+
+                updated_count = OrderItem.objects.filter(order=order, id__in=item_ids, status=OrderItem.Statuses.DEFAULT).update(status=OrderItem.Statuses.AGREEMENT)
+                if updated_count < len(item_ids):
+                    raise RuntimeError("Ошибка обновления статуса позиций по заказу")
+
+                order.update_client_status(Order.ClientStatuses.WAIT_APPROVAL, commit=True)
+                ChatMessage.objects.create(
+                    client=order.client,
+                    manager=self.get_manager(),
+                    text=f'Заказ #{order.id} отправлен на согласование. Ссылка на заказ: {settings.BASE_URL}{reverse("orders:detail", kwargs={"pk": self.order.id})}'
+                )
+        except Exception as ex:
+            return JsonResponse({"error": f"{ex}"}, status=500)
 
         due_to = datetime.now(tz=timezone.utc) + timedelta(hours=3)
         agreement_link = OrderLinkGenerator.build_url(
-            'http://test.thebestservice-parts.com/validate',
-            self.order.client,
-            self.order,
+            f"{settings.BASE_URL}{reverse('orders:client_approve')}",
+            order.client,
+            order,
             due_to)
         broker.send_order_agreement_notification(
-            self.order.client,
-            self.order,
+            order.client,
+            order,
             agreement_link,
             due_to.astimezone(settings.MSK_ZONE))
 
@@ -501,27 +494,52 @@ class UnexpectedStatusException(Exception):
     pass
 
 
-class OrderValidateView(generic.FormView):
+class OrderClientApproveView(generic.FormView):
 
     def get(self, request, *args, **kwargs):
-        token = request.GET.get('hash')
-
         try:
-            order_claim = OrderLinkGenerator.verify_for_order(token)
-            order = get_object_or_404(Order, pk=order_claim.order_id)
-            if order.client.id != order_claim.client_id:
-                raise ForbiddenException()
-            if order.client_status != Order.ClientStatuses.WAIT_APPROVAL:
-                raise UnexpectedStatusException()
+            token = request.GET.get('hash')
+            order = self.get_order(token)
         except InvalidOrderLinkToken as ex:
             return render(request, "orders/errors/expired.html", {}, status=400)
         except ForbiddenException as ex:
             return render(request, "orders/errors/forbidden.html", {}, status=403)
         except UnexpectedStatusException as ex:
-            return render(request, "orders/error/unexpected_status.html", {}, status=422)
+            return render(request, "orders/errors/unexpected_status.html", {}, status=422)
 
-        items = OrderItem.objects.filter(order=order, status=OrderItem.Statuses.AGREEMENT)
-        return render(request, "orders/order_validate_form.html", {
+        items = list(OrderItem.objects.filter(order=order, status=OrderItem.Statuses.AGREEMENT))
+        total_cost = sum((item.price for item in items), Decimal('0'))
+        return render(request, "orders/order_client_approve_form.html", {
             'order': order,
-            'items': items
+            'items': items,
+            'total_count': len(items),
+            'total_cost': total_cost,
+            'hash': token
         })
+
+    def post(self, request, *args, **kwargs):
+        try:
+            order = self.get_order(request.POST.get('hash'))
+        except InvalidOrderLinkToken as ex:
+            return render(request, "orders/errors/expired.html", {}, status=400)
+        except ForbiddenException as ex:
+            return render(request, "orders/errors/forbidden.html", {}, status=403)
+        except UnexpectedStatusException as ex:
+            return render(request, "orders/errors/unexpected_status.html", {}, status=422)
+
+        with transaction.atomic():
+            order.update_client_status(Order.ClientStatuses.APPROVED, commit=True)
+            updated_count = OrderItem.objects.filter(order=order, status=OrderItem.Statuses.AGREEMENT).update(
+                status=OrderItem.Statuses.READY_FOR_ORDER)
+        broker.send_order_change_status(order.client, order)
+
+        return render(request, "orders/successfully_approved_by_client.html", context={}, status=200)
+
+    def get_order(self, token):
+        order_claim = OrderLinkGenerator.verify_for_order(token)
+        order = get_object_or_404(Order, pk=order_claim.order_id)
+        if order.client.id != order_claim.client_id:
+            raise ForbiddenException()
+        if order.client_status != Order.ClientStatuses.WAIT_APPROVAL:
+            raise UnexpectedStatusException()
+        return order

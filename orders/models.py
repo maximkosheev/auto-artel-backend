@@ -55,6 +55,7 @@ class Order(models.Model):
         NOT_ASSIGNED = ('NOT_ASSIGNED', 'Новый')
         ASSIGNED = ('ASSIGNED', 'Менеджер принял заказ в работу')
         WAIT_APPROVAL = ('WAIT_APPROVAL', 'На согласовании с клиентом')
+        APPROVED = ('APPROVED', 'Согласован клиентом')
         WAIT_PAYMENT = ('WAIT_PAYMENT', 'Ждет оплаты')
         PAID = ('PAID', 'Оплачен')
         WAIT_SEND = ('WAIT_SEND', 'Ждет отправки у поставщиков')
@@ -69,6 +70,7 @@ class Order(models.Model):
     created = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(default=timezone.now)
     initial_requirements = models.TextField()
+    step_back = models.BooleanField(default=False, help_text='Сигнализирует, что произошло возвращение на предыдущй шаг')
 
     def __str__(self):
         return f'Заказ #{self.id} ({self.status})'
@@ -76,6 +78,18 @@ class Order(models.Model):
     @property
     def created_date(self):
         return self.created.date()
+
+    def update_status(self, status: Statuses, commit: bool = False):
+        self.status = status
+        self.updated = timezone.now()
+        if commit:
+            self.save(update_fields=['status', 'updated'])
+
+    def update_client_status(self, client_status: ClientStatuses, commit: bool = False):
+        self.client_status = client_status
+        self.updated = timezone.now()
+        if commit:
+            self.save(update_fields=['client_status', 'updated'])
 
     def created_date_formatted(self, template: str | None = None):
         if self.created_date is not None:
@@ -90,6 +104,7 @@ class OrderItem(models.Model):
     class Statuses(models.TextChoices):
         DEFAULT = 'DEFAULT', 'Не задан'
         AGREEMENT = 'AGREEMENT', 'На согласовании'
+        READY_FOR_ORDER = 'READY_FOR_ORDER', 'Готов к заказу'
         ORDERED = 'ORDERED', 'Заказан',
         HALF_ORDERED = 'HALF_ORDERED', 'Заказан частично'
     id = models.BigAutoField(primary_key=True)
@@ -116,5 +131,8 @@ class OrderItem(models.Model):
         return f"{self.name};{self.manufacture}; Кол-во:{self.count}; Цена:{self.price}"
 
 
-
-
+def order_valid_for_approval(order: Order) -> bool:
+    return (order.status == Order.Statuses.PROCESSING
+            and order.client_status == Order.ClientStatuses.ASSIGNED
+            and order.order_item_list.exists()
+            and not order.order_item_list.exclude(status=OrderItem.Statuses.DEFAULT).exists())
