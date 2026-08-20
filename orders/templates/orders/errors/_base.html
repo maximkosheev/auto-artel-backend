@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>{% block page-title %}{{ error_title|default:"Ошибка" }}{% endblock page-title %}</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            min-height: 100%;
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(160deg, #f7f8fa 0%, #eef0f3 100%);
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(16px, 5vw, 24px);
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        .error-card {
+            width: 100%;
+            max-width: 440px;
+            background: #ffffff;
+            border-radius: clamp(12px, 3vw, 16px);
+            box-shadow: 0 12px 32px rgba(20, 20, 30, 0.08);
+            padding: clamp(28px, 7vw, 40px) clamp(20px, 6vw, 32px);
+            text-align: center;
+        }
+
+        .error-icon {
+            width: clamp(52px, 15vw, 64px);
+            height: clamp(52px, 15vw, 64px);
+            margin: 0 auto clamp(14px, 4vw, 20px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .error-icon svg {
+            width: 50%;
+            height: 50%;
+        }
+
+        .error-icon--danger {
+            background: #fdecea;
+        }
+
+        .error-icon--danger svg {
+            color: #d64545;
+        }
+
+        .error-icon--warning {
+            background: #fdf3e3;
+        }
+
+        .error-icon--warning svg {
+            color: #c98a1c;
+        }
+
+        h1 {
+            font-size: clamp(18px, 4.5vw, 20px);
+            font-weight: 600;
+            color: #222;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        .error-message {
+            font-size: clamp(14px, 3.6vw, 15px);
+            line-height: 1.55;
+            color: #5a5f6a;
+            margin-bottom: 8px;
+        }
+
+        .error-hint {
+            font-size: clamp(13px, 3.2vw, 14px);
+            line-height: 1.5;
+            color: #8b909a;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eef0f3;
+        }
+
+        /* Tablets and large phones in landscape: let the card breathe a bit more */
+        @media (min-width: 600px) {
+            .error-card {
+                max-width: 480px;
+            }
+        }
+
+        /* Small phones (iPhone SE and similar, ~360px and narrower) */
+        @media (max-width: 360px) {
+            body {
+                padding: 12px;
+            }
+
+            .error-card {
+                border-radius: 12px;
+                padding: 24px 18px;
+            }
+        }
+
+        /* Short or landscape viewports: avoid pinning content off-screen and keep spacing sane */
+        @media (max-height: 480px) {
+            body {
+                align-items: flex-start;
+                padding-top: clamp(16px, 4vh, 24px);
+                padding-bottom: clamp(16px, 4vh, 24px);
+            }
+
+            .error-icon {
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+
+    {% block extra_style %}{% endblock extra_style %}
+</head>
+<body>
+
+    <div class="error-card">
+        <div class="error-icon {% block icon_theme %}{% endblock icon_theme %}">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {% block icon_svg %}{% endblock icon_svg %}
+            </svg>
+        </div>
+
+        <h1>{% if error_title %}{{ error_title }}{% else %}{% block title_default %}{% endblock title_default %}{% endif %}</h1>
+
+        <p class="error-message">
+            {% if error_message %}{{ error_message }}{% else %}{% block message_default %}{% endblock message_default %}{% endif %}
+        </p>
+
+        <p class="error-hint">
+            {% if error_hint %}{{ error_hint }}{% else %}{% block hint_default %}{% endblock hint_default %}{% endif %}
+        </p>
+    </div>
+
+    {% block extra_js %}{% endblock extra_js %}
+
+</body>
+</html>

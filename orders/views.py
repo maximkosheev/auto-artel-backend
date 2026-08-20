@@ -527,11 +527,24 @@ class OrderClientApproveView(generic.FormView):
         except UnexpectedStatusException as ex:
             return render(request, "orders/errors/unexpected_status.html", {}, status=422)
 
+        selected_ids = set()
+        for raw_item_id in request.POST.getlist('item_ids'):
+            try:
+                selected_ids.add(int(raw_item_id))
+            except (TypeError, ValueError):
+                continue
+
         with transaction.atomic():
-            order.update_client_status(Order.ClientStatuses.APPROVED, commit=True)
-            updated_count = OrderItem.objects.filter(order=order, status=OrderItem.Statuses.AGREEMENT).update(
-                status=OrderItem.Statuses.READY_FOR_ORDER)
-        broker.send_order_change_status(order.client, order)
+            agreement_items = list(
+                OrderItem.objects.select_for_update().filter(order=order, status=OrderItem.Statuses.AGREEMENT)
+            )
+            approved_ids = [item.id for item in agreement_items if item.id in selected_ids]
+            rejected_ids = [item.id for item in agreement_items if item.id not in selected_ids]
+
+            if approved_ids:
+                OrderItem.objects.filter(id__in=approved_ids).update(status=OrderItem.Statuses.APPROVED)
+            if rejected_ids:
+                OrderItem.objects.filter(id__in=rejected_ids).update(status=OrderItem.Statuses.REJECTED)
 
         return render(request, "orders/successfully_approved_by_client.html", context={}, status=200)
 

@@ -104,6 +104,8 @@ class OrderItem(models.Model):
     class Statuses(models.TextChoices):
         DEFAULT = 'DEFAULT', 'Не задан'
         AGREEMENT = 'AGREEMENT', 'На согласовании'
+        APPROVED = 'APPROVED', 'Согласован клиентом'
+        REJECTED = 'REJECTED', 'Отклонён клиентом'
         READY_FOR_ORDER = 'READY_FOR_ORDER', 'Готов к заказу'
         ORDERED = 'ORDERED', 'Заказан',
         HALF_ORDERED = 'HALF_ORDERED', 'Заказан частично'

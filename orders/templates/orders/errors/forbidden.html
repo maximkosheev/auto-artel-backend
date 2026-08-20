@@ -1,108 +1,18 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>{% block page-title %}{{ error_title|default:"Доступ запрещён" }}{% endblock %}</title>
+{% extends "orders/errors/_base.html" %}
 
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% block page-title %}{{ error_title|default:"Доступ запрещён" }}{% endblock page-title %}
 
-        html, body {
-            height: 100%;
-        }
+{% block title_default %}Доступ запрещён{% endblock title_default %}
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(160deg, #f7f8fa 0%, #eef0f3 100%);
-            color: #333;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-        }
+{% block message_default %}У вас нет прав для просмотра этого заказа. Возможно, ссылка была выдана для другого клиента.{% endblock message_default %}
 
-        .error-card {
-            width: 100%;
-            max-width: 440px;
-            background: #ffffff;
-            border-radius: 16px;
-            box-shadow: 0 12px 32px rgba(20, 20, 30, 0.08);
-            padding: 40px 32px;
-            text-align: center;
-        }
+{% block hint_default %}Если вы считаете, что это ошибка, свяжитесь с вашим менеджером.{% endblock hint_default %}
 
-        .error-icon {
-            width: 64px;
-            height: 64px;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            background: #fdecea;
-        }
+{% block icon_theme %}error-icon--danger{% endblock icon_theme %}
 
-        .error-icon svg {
-            width: 32px;
-            height: 32px;
-            color: #d64545;
-        }
-
-        h1 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #222;
-            margin-bottom: 12px;
-        }
-
-        .error-message {
-            font-size: 15px;
-            line-height: 1.55;
-            color: #5a5f6a;
-            margin-bottom: 8px;
-        }
-
-        .error-hint {
-            font-size: 14px;
-            line-height: 1.5;
-            color: #8b909a;
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid #eef0f3;
-        }
-    </style>
-
-    {% block extra_style %}{% endblock extra_style %}
-</head>
-<body>
-
-    <div class="error-card">
-        <div class="error-icon">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="5" y="11" width="14" height="10" rx="2"
-                      stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                <path d="M8 11V7a4 4 0 0 1 8 0v4"
-                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </div>
-
-        <h1>{{ error_title|default:"Доступ запрещён" }}</h1>
-
-        <p class="error-message">
-            {{ error_message|default:"У вас нет прав для просмотра этого заказа. Возможно, ссылка была выдана для другого клиента." }}
-        </p>
-
-        <p class="error-hint">
-            {{ error_hint|default:"Если вы считаете, что это ошибка, свяжитесь с вашим менеджером." }}
-        </p>
-    </div>
-
-    {% block extra_js %}{% endblock extra_js %}
-
-</body>
-</html>
+{% block icon_svg %}
+    <rect x="5" y="11" width="14" height="10" rx="2"
+          stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M8 11V7a4 4 0 0 1 8 0v4"
+          stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+{% endblock icon_svg %}
