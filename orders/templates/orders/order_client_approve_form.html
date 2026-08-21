@@ -307,6 +307,7 @@
                                        value="{{ item.id }}"
                                        data-price="{{ item.price }}"
                                        {% if item.status == 'APPROVED' %}checked{% endif %}>
+                                <input type="hidden" name="known_item_ids" value="{{ item.id }}">
                                 <span class="item-body">
                                     <span class="item-main">
                                         <span class="item-name">{{ item.name }}</span>
