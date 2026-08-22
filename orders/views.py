@@ -534,19 +534,32 @@ class OrderClientApproveView(generic.FormView):
         except UnexpectedStatusException as ex:
             return render(request, "orders/errors/unexpected_status.html", {}, status=422)
 
-        selected_ids = set()
-        for raw_item_id in request.POST.getlist('item_ids'):
-            try:
-                selected_ids.add(int(raw_item_id))
-            except (TypeError, ValueError):
-                continue
+        def parse_ids(field_name):
+            ids = set()
+            for raw_id in request.POST.getlist(field_name):
+                try:
+                    ids.add(int(raw_id))
+                except (TypeError, ValueError):
+                    continue
+            return ids
+
+        # known_item_ids carries every item id that was actually rendered on the
+        # approval form (checked or not) so we know exactly which items belong to
+        # this approval request, without needing to persist that fact anywhere.
+        # item_ids carries only the ones the client left checked.
+        known_ids = parse_ids('known_item_ids')
+        selected_ids = parse_ids('item_ids') & known_ids
 
         with transaction.atomic():
-            agreement_items = list(
-                OrderItem.objects.select_for_update().filter(order=order, status=OrderItem.Statuses.AGREEMENT)
+            # Scoped to this order so a tampered known_item_ids can't reach items
+            # belonging to a different client's order; deliberately not filtered
+            # by status, since an item may be sent for approval regardless of its
+            # current status.
+            last_request_items = list(
+                OrderItem.objects.select_for_update().filter(order=order, id__in=known_ids)
             )
-            approved_ids = [item.id for item in agreement_items if item.id in selected_ids]
-            rejected_ids = [item.id for item in agreement_items if item.id not in selected_ids]
+            approved_ids = [item.id for item in last_request_items if item.id in selected_ids]
+            rejected_ids = [item.id for item in last_request_items if item.id not in selected_ids]
 
             if approved_ids:
                 OrderItem.objects.filter(id__in=approved_ids).update(status=OrderItem.Statuses.APPROVED)
