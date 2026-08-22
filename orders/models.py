@@ -70,7 +70,6 @@ class Order(models.Model):
     created = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(default=timezone.now)
     initial_requirements = models.TextField()
-    step_back = models.BooleanField(default=False, help_text='Сигнализирует, что произошло возвращение на предыдущй шаг')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -80,7 +79,7 @@ class Order(models.Model):
         return f'Заказ #{self.id} ({self.status})'
 
     def save(self, *args, **kwargs):
-        super().save(*args, *kwargs)
+        super().save(*args, **kwargs)
         self.client_status_changed = False
 
     @property
@@ -141,10 +140,3 @@ class OrderItem(models.Model):
 
     def client_short_str(self):
         return f"{self.name};{self.manufacture}; Кол-во:{self.count}; Цена:{self.price}"
-
-
-def order_valid_for_approval(order: Order) -> bool:
-    return (order.status == Order.Statuses.PROCESSING
-            and order.client_status == Order.ClientStatuses.ASSIGNED
-            and order.order_item_list.exists()
-            and not order.order_item_list.exclude(status=OrderItem.Statuses.DEFAULT).exists())

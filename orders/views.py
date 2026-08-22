@@ -8,8 +8,6 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -20,8 +18,9 @@ from auto_artel.broker import broker
 from chat.models import ChatMessage
 from parts_providers import ProviderApiError
 from utils.date_utils import parse_date
+from .errors import BusinessError
 from .forms import OrderForm, OrderNewForm
-from .models import Order, Manager, OrderItem, order_valid_for_approval
+from .models import Order, Manager, OrderItem
 from .urls_helper import OrderLinkGenerator, InvalidOrderLinkToken
 
 
@@ -48,12 +47,6 @@ def calc_final_price(purchase_price: Decimal, count: int, discount: int, extra: 
 
 def is_manager(user):
     return user.groups.filter(name='manager').exists()
-
-
-@receiver(post_save, sender=Order)
-def order_saved_handler(sender, instance, **kwargs):
-    if instance.client_status_changed:
-        broker.send_order_change_status(instance.client, instance)
 
 
 class ManagerMixin(UserPassesTestMixin):
@@ -365,17 +358,12 @@ class OrderItemBulkRemove(ManagerMixin, OrderIsMine, View):
 
 
 class OrderItemUpdateCount(ManagerMixin, OrderIsMine, View):
-    def get_item(self, request, *args, **kwargs):
-        return get_object_or_404(OrderItem, pk=kwargs['item_pk'])
+    def patch(self, request, pk, item_pk):
+        item = get_object_or_404(OrderItem, pk=item_pk, order_id=pk)
 
-    def dispatch(self, request, *args, **kwargs):
-        self.item = self.get_item(request, *args, **kwargs)
-        if self.item.status != OrderItem.Statuses.DEFAULT:
+        if item.status != OrderItem.Statuses.DEFAULT:
             return JsonResponse({"error": "Позиция находится на согласовании, поэтому не может быть изменена"},
                                 status=422)
-        return super().dispatch(request, *args, **kwargs)
-
-    def patch(self, request, pk, item_pk):
         try:
             data = json.loads(request.body.decode('utf-8'))
             count = int(data.get("count"))
@@ -386,17 +374,17 @@ class OrderItemUpdateCount(ManagerMixin, OrderIsMine, View):
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid count value."}, status=400)
 
-        self.item.price = calc_final_price(self.item.purchase_price, count, self.item.discount, 30)
-        self.item.count = count
+        item.price = calc_final_price(item.purchase_price, count, item.discount, 30)
+        item.count = count
 
-        self.item.save(update_fields=["count", "price"])
+        item.save(update_fields=["count", "price"])
 
         return JsonResponse({
             "success": True,
             "item": {
-                "id": self.item.id,
-                "count": self.item.count,
-                "price": str(self.item.price),
+                "id": item.id,
+                "count": item.count,
+                "price": str(item.price),
             },
         })
 
@@ -421,12 +409,9 @@ class OrderItemsAgreementConfirmView(ManagerMixin, OrderIsMine, View):
             return redirect(reverse('orders:detail', kwargs={'pk': pk}))
 
         selected_items = list(OrderItem.objects.filter(order=self.order, id__in=item_ids))
+
         if not selected_items:
             messages.error(request, 'Выбранные позиции не найдены в заказе')
-            return redirect(reverse('orders:detail', kwargs={'pk': pk}))
-
-        if not order_valid_for_approval(self.order):
-            messages.error(request, 'Заказ не готов к согласованию')
             return redirect(reverse('orders:detail', kwargs={'pk': pk}))
 
         total_cost = sum((item.price for item in selected_items), Decimal('0'))
@@ -462,12 +447,17 @@ class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
         try:
             with transaction.atomic():
                 order = Order.objects.select_for_update().get(pk=pk)
-                if not order_valid_for_approval(order):
-                    return JsonResponse({"error": "Заказ не готов к согласованию"}, status=422)
 
-                updated_count = OrderItem.objects.filter(order=order, id__in=item_ids, status=OrderItem.Statuses.DEFAULT).update(status=OrderItem.Statuses.AGREEMENT)
-                if updated_count < len(item_ids):
-                    raise RuntimeError("Ошибка обновления статуса позиций по заказу")
+                # check if all early approved items are in current list for approve.
+                approved_item_ids = order.order_item_list.filter(status=OrderItem.Statuses.APPROVED).values_list('id', flat=True)
+                if not all(item_id in item_ids for item_id in approved_item_ids):
+                    raise BusinessError("В заказе есть позиции, которые клиент ранее согласовал, но они не включены в данный список"
+                                        "Добавьте все согласованные ранее позиции и повторите попытку")
+
+                # Позициям, которые ранее не участвовали в согласовании (статус DEFAULT) или были отклонены (REJECTED),
+                # изменяем статус на AGREEMENT. На форме у клиента они будут unchecked
+                # Позициям, которые ранее уже были согласованы, ничего не меняем. На форме у клиента они будут checked.
+                updated_count = OrderItem.objects.filter(order=order, id__in=item_ids, status__in=[OrderItem.Statuses.DEFAULT, OrderItem.Statuses.REJECTED]).update(status=OrderItem.Statuses.AGREEMENT)
 
                 order.update_client_status(Order.ClientStatuses.WAIT_APPROVAL, commit=True)
                 ChatMessage.objects.create(
@@ -475,6 +465,8 @@ class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
                     manager=self.get_manager(),
                     text=f'Заказ #{order.id} отправлен на согласование. Ссылка на заказ: {settings.BASE_URL}{reverse("orders:detail", kwargs={"pk": self.order.id})}'
                 )
+        except BusinessError as ex:
+            return JsonResponse({"error": f"{ex}"}, status=422)
         except Exception as ex:
             return JsonResponse({"error": f"{ex}"}, status=500)
 
@@ -514,7 +506,7 @@ class OrderClientApproveView(generic.FormView):
         except UnexpectedStatusException as ex:
             return render(request, "orders/errors/unexpected_status.html", {}, status=422)
 
-        items = list(OrderItem.objects.filter(order=order, status=OrderItem.Statuses.AGREEMENT))
+        items = list(OrderItem.objects.filter(order=order, status__in=[OrderItem.Statuses.AGREEMENT, OrderItem.Statuses.APPROVED]))
         total_cost = sum((item.price for item in items), Decimal('0'))
         return render(request, "orders/order_client_approve_form.html", {
             'order': order,
