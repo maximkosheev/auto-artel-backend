@@ -8,6 +8,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -46,6 +48,12 @@ def calc_final_price(purchase_price: Decimal, count: int, discount: int, extra: 
 
 def is_manager(user):
     return user.groups.filter(name='manager').exists()
+
+
+@receiver(post_save, sender=Order)
+def order_saved_handler(sender, instance, **kwargs):
+    if instance.client_status_changed:
+        broker.send_order_change_status(instance.client, instance)
 
 
 class ManagerMixin(UserPassesTestMixin):
@@ -148,7 +156,6 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
                     self.object.manager = self.get_manager()
                     self.object.update_status(Order.Statuses.PROCESSING)
                     self.object.update_client_status(Order.ClientStatuses.ASSIGNED)
-                    broker.send_order_change_status(self.object.client, self.object)
 
                 self.object.save()
                 return FormMixin.form_valid(self, form)

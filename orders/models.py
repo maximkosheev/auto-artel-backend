@@ -72,8 +72,16 @@ class Order(models.Model):
     initial_requirements = models.TextField()
     step_back = models.BooleanField(default=False, help_text='Сигнализирует, что произошло возвращение на предыдущй шаг')
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.client_status_changed = False
+
     def __str__(self):
         return f'Заказ #{self.id} ({self.status})'
+
+    def save(self, *args, **kwargs):
+        super().save(*args, *kwargs)
+        self.client_status_changed = False
 
     @property
     def created_date(self):
@@ -86,6 +94,8 @@ class Order(models.Model):
             self.save(update_fields=['status', 'updated'])
 
     def update_client_status(self, client_status: ClientStatuses, commit: bool = False):
+        if self.client_status != client_status:
+            self.client_status_changed = True
         self.client_status = client_status
         self.updated = timezone.now()
         if commit:
