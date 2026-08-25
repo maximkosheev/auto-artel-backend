@@ -13,3 +13,19 @@
 .order-item-status.half_ordered {
     background-color: #FD7C6E !important;
 }
+
+.order-item-status.approved {
+    background-color: #20c997 !important;
+}
+
+.order-item-status.rejected {
+    background-color: #e74c3c !important;
+}
+
+.order-item-status.ready_for_order {
+    background-color: #3498db !important;
+}
+
+.order-item-status.ready {
+    background-color: #9b59b6 !important;
+}

@@ -67,8 +67,10 @@ class Broker:
             'to': client.id,
             'to_telegram_id': client.telegram_id,
             'type': 'TEXT',
-            'data': f"Статус вашего заказа #{order.id} от {order.created_date_formatted()} изменился. "
-                    f"Новый статус <b>{order.get_client_status_display()}</b>\n"
+            'data': {
+                "text": f"Статус вашего заказа #{order.id} от {order.created_date_formatted()} изменился. "
+                        f"Новый статус <b>{order.get_client_status_display()}</b>\n"
+            }
         })
 
     def send_order_agreement_notification(self, client, order, agreement_link, due_to):

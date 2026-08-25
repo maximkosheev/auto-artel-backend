@@ -179,6 +179,16 @@ agreementSelectedBtn.addEventListener('click', () => {
   const selected = getSelectedCheckboxes();
   if (selected.length === 0) return;
 
+  const selectedIds = new Set(selected.map((cb) => cb.dataset.itemId));
+  const missingApproved = Array.from(document.querySelectorAll('tr[data-item-id][data-status="APPROVED"]'))
+    .filter((row) => !selectedIds.has(row.dataset.itemId));
+
+  if (missingApproved.length > 0) {
+    alert('В заказе есть позиции, которые клиент ранее согласовал, но они не включены в выбранный список. '
+      + 'Добавьте все согласованные ранее позиции и повторите попытку.');
+    return;
+  }
+
   const itemIds = selected.map((cb) => cb.dataset.itemId).join(',');
   window.location.href = `${AGREEMENT_CONFIRM_URL}?item_ids=${itemIds}`;
 });

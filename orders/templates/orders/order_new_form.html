@@ -1,6 +1,12 @@
 {% extends 'orders/base.html' %}
 {% load static %}
 
+{% block orders_extra_style %}
+<style>
+    {% include 'orders/css/order_card.css' %}
+</style>
+{% endblock orders_extra_style %}
+
 {% block orders_extra_content %}
     <div class="mt-4">
         <h2>Заказ № {{ order.id }}</h2>

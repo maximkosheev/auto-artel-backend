@@ -451,7 +451,7 @@ class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
                 # check if all early approved items are in current list for approve.
                 approved_item_ids = order.order_item_list.filter(status=OrderItem.Statuses.APPROVED).values_list('id', flat=True)
                 if not all(item_id in item_ids for item_id in approved_item_ids):
-                    raise BusinessError("В заказе есть позиции, которые клиент ранее согласовал, но они не включены в данный список"
+                    raise BusinessError("В заказе есть позиции, которые клиент ранее согласовал, но они не включены в данный список. "
                                         "Добавьте все согласованные ранее позиции и повторите попытку")
 
                 # Позициям, которые ранее не участвовали в согласовании (статус DEFAULT) или были отклонены (REJECTED),
@@ -558,7 +558,16 @@ class OrderClientApproveView(generic.FormView):
             if rejected_ids:
                 OrderItem.objects.filter(id__in=rejected_ids).update(status=OrderItem.Statuses.REJECTED)
 
-        return render(request, "orders/successfully_approved_by_client.html", context={}, status=200)
+            # If client have approved whole list, and order contains at least one APPROVED item - change Order status to the APPROVED
+            if len(rejected_ids) == 0 and order.order_item_list.filter(status=OrderItem.Statuses.APPROVED).exists():
+                order.update_client_status(Order.ClientStatuses.APPROVED, commit=True)
+
+        if len(approved_ids) > 0 and len(rejected_ids) > 0:
+            return render(request, "orders/partial_approved_by_client.html", context={}, status=200)
+        elif len(approved_ids) > 0:
+            return render(request, "orders/successfully_approved_by_client.html", context={}, status=200)
+        else:
+            return render(request, "orders/empty_approved_by_client.html", context={}, status=200)
 
     def get_order(self, token):
         order_claim = OrderLinkGenerator.verify_for_order(token)

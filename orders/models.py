@@ -118,6 +118,7 @@ class OrderItem(models.Model):
         READY_FOR_ORDER = 'READY_FOR_ORDER', 'Готов к заказу'
         ORDERED = 'ORDERED', 'Заказан',
         HALF_ORDERED = 'HALF_ORDERED', 'Заказан частично'
+        READY = 'READY', 'Ждет выдачи в ПВЗ'
     id = models.BigAutoField(primary_key=True)
     article_number = models.CharField(null=False, default='Артикул отсутствует', help_text='Артикул')
     manufacture = models.CharField(null=False, default='Производитель отсутствует', help_text='Производитель')
