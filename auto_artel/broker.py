@@ -88,5 +88,19 @@ class Broker:
             }
         })
 
+    def send_order_invoice_notification(self, client, order, invoice):
+        self.send_notification_message({
+            'to': client.id,
+            'to_telegram_id': client.telegram_id,
+            'type': 'ORDER_PAY_REQUIRED',
+            'data': {
+                'text': f"Требуется оплата по вашему заказу #{order.id} от {order.created_date_formatted()}.\n"
+                        f"Для оплаты перейдите по ссылке ниже. Оплатить нужно в течении суток",
+                'details': {
+                    'link': invoice
+                }
+            }
+        })
+
 
 broker = Broker()

@@ -577,3 +577,27 @@ class OrderClientApproveView(generic.FormView):
         if order.client_status != Order.ClientStatuses.WAIT_APPROVAL:
             raise UnexpectedStatusException()
         return order
+
+
+class OrderInvoiceView(ManagerMixin, OrderIsMine, View):
+    def post(self, request, pk):
+        invoice = request.POST.get('invoice_link', '').strip()
+        if not invoice:
+            messages.error(request, "Не указан счет на оплату")
+            return redirect(reverse('orders:detail', kwargs={'pk': pk}))
+
+        try:
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(pk=pk)
+                order.update_client_status(Order.ClientStatuses.WAIT_PAYMENT, commit=True)
+                ChatMessage.objects.create(
+                    client=order.client,
+                    manager=self.get_manager(),
+                    text=f'Заказ #{order.id} выставлен счет на оплату.'
+                )
+            broker.send_order_invoice_notification(order.client, order, invoice)
+            messages.info(request, "Счет на оплату отправлен клиенту")
+        except Exception as ex:
+            messages.error(request, "Возникла непредвиденная ошибка. Обратитесь к администратору")
+
+        return redirect(reverse('orders:detail', kwargs={'pk': pk}))
