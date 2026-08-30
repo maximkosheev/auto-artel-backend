@@ -13,42 +13,108 @@
             <h1>Заказы</h1>
         </div>
 
-        <table class="order-table">
-            <thead>
-                <tr>
-                    <th>Номер</th>
-                    <th>Клиент</th>
-                    <th>Менеджер</th>
-                    <th>Дата создания</th>
-                    <th>Статус</th>
-                    <th>Кратко</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for order in orders %}
-                <tr class="order-row status-{{ order.status|lower }}">
-                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.id }}</a></td>
-                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.client.name }}</a></td>
-                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.manager.name }}</a></td>
-                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.created|date:"M d, Y H:i" }}</a></td>
-                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">
-                        <span class="status-badge status-{{ order.status|lower }}">
-                            {{ order.get_status_display }}
-                        </span>
-                    </a></td>
-                    <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">
-                        {{ order.initial_requirements|truncatechars:50}}
-                    </a></td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 40px; color: #666;">
-                        Нет ни одного заказа
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <form method="get" id="orders-filter-form">
+            <input type="hidden" name="sort" id="sort-input">
+            <input type="hidden" name="dir" id="dir-input">
+
+            <div class="orders-filter-bar">
+                <div class="filter-dropdown" id="client-filter-dropdown">
+                    <button type="button" class="filter-dropdown-toggle">Клиент <span class="filter-dropdown-caret">&#9662;</span></button>
+                    <div class="filter-dropdown-menu">
+                        <input type="text" class="filter-search" data-target="client" placeholder="Поиск клиента...">
+                        <label class="filter-option filter-option-all">
+                            <input type="checkbox" class="filter-all-checkbox" data-group="client" checked> Все
+                        </label>
+                        <div class="filter-option-list" data-group="client">
+                            {% for c in all_clients %}
+                            <label class="filter-option" data-search-text="{{ c.name|lower }}">
+                                <input type="checkbox" name="client" value="{{ c.id }}"> {{ c.name }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-dropdown" id="status-filter-dropdown">
+                    <button type="button" class="filter-dropdown-toggle">Статус клиента <span class="filter-dropdown-caret">&#9662;</span></button>
+                    <div class="filter-dropdown-menu">
+                        <label class="filter-option filter-option-all">
+                            <input type="checkbox" class="filter-all-checkbox" data-group="client_status" checked> Все
+                        </label>
+                        <div class="filter-option-list" data-group="client_status">
+                            {% for value, label in client_status_choices %}
+                            <label class="filter-option">
+                                <input type="checkbox" name="client_status" value="{{ value }}"> {{ label }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <label class="filter-mine">
+                    <input type="checkbox" name="mine" value="1" id="mine-checkbox"> Назначены мне
+                </label>
+
+                <button type="submit" class="filter-apply-btn">Применить</button>
+                <button type="button" class="filter-reset-btn" id="filter-reset-btn">Сбросить фильтры</button>
+            </div>
+
+            <table class="order-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort-field="id">Номер <span class="sort-indicator" data-sort-indicator="id"></span></th>
+                        <th>Клиент</th>
+                        <th>Менеджер</th>
+                        <th class="sortable" data-sort-field="created">Дата создания <span class="sort-indicator" data-sort-indicator="created"></span></th>
+                        <th>Статус</th>
+                        <th>Кратко</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr class="order-row status-{{ order.status|lower }}">
+                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.id }}</a></td>
+                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.client.name }}</a></td>
+                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.manager.name }}</a></td>
+                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.created|date:"M d, Y H:i" }}</a></td>
+                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">
+                            <span class="status-badge status-{{ order.status|lower }}">
+                                {{ order.get_status_display }}/{{ order.get_client_status_display }}
+                            </span>
+                        </a></td>
+                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">
+                            {{ order.initial_requirements|truncatechars:50}}
+                        </a></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: #666;">
+                            Нет ни одного заказа
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="pagination-bar">
+                <div class="page-size-control">
+                    <label for="page-size-select">Показывать по:</label>
+                    <select id="page-size-select" name="page_size">
+                        <option value="1">1</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="150">150</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+                <div class="pagination-control" id="pagination-control"></div>
+            </div>
+        </form>
+
+        {% if page_obj %}
+        <script id="pagination-data" type="application/json">{"currentPage": {{ page_obj.number }}, "numPages": {{ page_obj.paginator.num_pages }}, "totalCount": {{ page_obj.paginator.count }}}</script>
+        {% endif %}
     </div>
 </div>
 
@@ -168,6 +234,230 @@
     // Initialize WebSocket connection
     document.addEventListener('DOMContentLoaded', function() {
         //connectWebSocket();
+        initSorting();
+        initOrdersFilters();
+        initPagination();
     });
+
+    /* ---- Sorting (order.id / order.created) ---- */
+    function getCurrentParams() {
+        return new URLSearchParams(window.location.search);
+    }
+
+    function initSorting() {
+        const params = getCurrentParams();
+        const currentSort = params.get('sort');
+        const currentDir = params.get('dir') || 'asc';
+
+        document.querySelectorAll('th.sortable').forEach(function(th) {
+            const field = th.dataset.sortField;
+            const indicator = th.querySelector('.sort-indicator');
+            if (field === currentSort && indicator) {
+                indicator.textContent = currentDir === 'desc' ? '▼' : '▲';
+            }
+            th.addEventListener('click', function() {
+                const p = getCurrentParams();
+                const sort = p.get('sort');
+                const dir = p.get('dir') || 'asc';
+                const newDir = (sort === field && dir === 'asc') ? 'desc' : 'asc';
+                p.set('sort', field);
+                p.set('dir', newDir);
+                p.delete('page');
+                window.location.search = p.toString();
+            });
+        });
+
+        const sortInput = document.getElementById('sort-input');
+        const dirInput = document.getElementById('dir-input');
+        if (sortInput) {
+            sortInput.value = currentSort || '';
+            sortInput.disabled = !currentSort;
+        }
+        if (dirInput) {
+            dirInput.value = currentSort ? currentDir : '';
+            dirInput.disabled = !currentSort;
+        }
+    }
+
+    /* ---- Filters (client, client_status, mine) ---- */
+    function initOrdersFilters() {
+        const params = getCurrentParams();
+
+        document.querySelectorAll('.filter-dropdown-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const dropdown = btn.closest('.filter-dropdown');
+                const isOpen = dropdown.classList.contains('open');
+                document.querySelectorAll('.filter-dropdown.open').forEach(function(d) {
+                    d.classList.remove('open');
+                });
+                if (!isOpen) {
+                    dropdown.classList.add('open');
+                }
+            });
+        });
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.filter-dropdown.open').forEach(function(d) {
+                d.classList.remove('open');
+            });
+        });
+        document.querySelectorAll('.filter-dropdown-menu').forEach(function(menu) {
+            menu.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        });
+
+        ['client', 'client_status'].forEach(function(group) {
+            const selected = params.getAll(group);
+            const checkboxes = document.querySelectorAll('input[name="' + group + '"]');
+            const allCheckbox = document.querySelector('.filter-all-checkbox[data-group="' + group + '"]');
+            if (!allCheckbox) {
+                return;
+            }
+
+            checkboxes.forEach(function(cb) {
+                cb.checked = selected.indexOf(cb.value) !== -1;
+            });
+            allCheckbox.checked = selected.length === 0;
+
+            allCheckbox.addEventListener('change', function() {
+                if (allCheckbox.checked) {
+                    checkboxes.forEach(function(cb) {
+                        cb.checked = false;
+                    });
+                }
+                updateFilterButtonLabels();
+            });
+
+            checkboxes.forEach(function(cb) {
+                cb.addEventListener('change', function() {
+                    const anyChecked = Array.prototype.some.call(checkboxes, function(c) {
+                        return c.checked;
+                    });
+                    allCheckbox.checked = !anyChecked;
+                    updateFilterButtonLabels();
+                });
+            });
+        });
+
+        const mineCheckbox = document.getElementById('mine-checkbox');
+        if (mineCheckbox) {
+            mineCheckbox.checked = params.get('mine') === '1';
+        }
+
+        document.querySelectorAll('.filter-search').forEach(function(input) {
+            input.addEventListener('input', function() {
+                const group = input.dataset.target;
+                const query = input.value.trim().toLowerCase();
+                document.querySelectorAll('.filter-option-list[data-group="' + group + '"] .filter-option').forEach(function(label) {
+                    const text = label.dataset.searchText || '';
+                    label.style.display = text.indexOf(query) !== -1 ? '' : 'none';
+                });
+            });
+        });
+
+        const resetBtn = document.getElementById('filter-reset-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function() {
+                window.location.href = window.location.pathname;
+            });
+        }
+
+        updateFilterButtonLabels();
+    }
+
+    function updateFilterButtonLabels() {
+        const clientCount = document.querySelectorAll('input[name="client"]:checked').length;
+        const statusCount = document.querySelectorAll('input[name="client_status"]:checked').length;
+        const clientBtn = document.querySelector('#client-filter-dropdown .filter-dropdown-toggle');
+        const statusBtn = document.querySelector('#status-filter-dropdown .filter-dropdown-toggle');
+        if (clientBtn) {
+            clientBtn.innerHTML = (clientCount ? 'Клиент (' + clientCount + ')' : 'Клиент') + ' <span class="filter-dropdown-caret">▾</span>';
+        }
+        if (statusBtn) {
+            statusBtn.innerHTML = (statusCount ? 'Статус клиента (' + statusCount + ')' : 'Статус клиента') + ' <span class="filter-dropdown-caret">▾</span>';
+        }
+    }
+
+    /* ---- Pagination ---- */
+    function initPagination() {
+        const pageSizeSelect = document.getElementById('page-size-select');
+        const params = getCurrentParams();
+
+        if (pageSizeSelect) {
+            pageSizeSelect.value = params.get('page_size') || '20';
+            pageSizeSelect.addEventListener('change', function() {
+                pageSizeSelect.form.requestSubmit();
+            });
+        }
+
+        const dataEl = document.getElementById('pagination-data');
+        const container = document.getElementById('pagination-control');
+        if (!dataEl || !container) {
+            return;
+        }
+
+        let data;
+        try {
+            data = JSON.parse(dataEl.textContent);
+        } catch (e) {
+            return;
+        }
+
+        const currentPage = data.currentPage;
+        const numPages = data.numPages;
+        if (!numPages || numPages <= 1) {
+            return;
+        }
+
+        function buildLink(page, label, isDisabled, isActive) {
+            if (isDisabled) {
+                const span = document.createElement('span');
+                span.className = 'page-link disabled';
+                span.textContent = label;
+                return span;
+            }
+            const a = document.createElement('a');
+            a.className = 'page-link' + (isActive ? ' active' : '');
+            a.textContent = label;
+            const p = new URLSearchParams(params);
+            p.set('page', page);
+            a.href = '?' + p.toString();
+            return a;
+        }
+
+        function getPageRange(current, total) {
+            const delta = 2;
+            const range = [];
+            for (let i = 1; i <= total; i++) {
+                if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+                    range.push(i);
+                }
+            }
+            const withDots = [];
+            let prev = null;
+            range.forEach(function(i) {
+                if (prev !== null && i - prev > 1) {
+                    withDots.push('...');
+                }
+                withDots.push(i);
+                prev = i;
+            });
+            return withDots;
+        }
+
+        container.appendChild(buildLink(currentPage - 1, '‹', currentPage === 1, false));
+        getPageRange(currentPage, numPages).forEach(function(p) {
+            if (p === '...') {
+                const span = document.createElement('span');
+                span.className = 'page-ellipsis';
+                span.textContent = '…';
+                container.appendChild(span);
+            } else {
+                container.appendChild(buildLink(p, String(p), false, p === currentPage));
+            }
+        });
+        container.appendChild(buildLink(currentPage + 1, '›', currentPage === numPages, false));
+    }
 </script>
 {% endblock orders_extra_js %}

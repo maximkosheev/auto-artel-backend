@@ -24,7 +24,7 @@
 
 {% block orders_extra_content %}
     <div class="mt-4">
-        <h2>{% if is_edit %}Редактирование заказа{% else %}Новый заказ{% endif %}</h2>
+        <h2>Корзина заказа №{{ order.id }}</h2>
 
         {% if messages %}
             {% for message in messages %}
@@ -42,15 +42,12 @@
             <div class="card mb-4">
                 <div class="card-header">
                     <h5>Детали заказа</h5>
+                    <div class="mb-3">
+                        <div class="mb-3">Клиент: <a>{{ order.client }}</a></div>
+                        <div class="mb-3">Статус: {{ order.get_client_status_display }}</div>
+                    </div>
                 </div>
                 <div class="card-body">
-                    {% if is_edit %}
-                        <div class="mb-3">
-                            <label class="form-label">Клиент</label>
-                            <input type="text" class="form-control" value="{{ order.client }}" readonly style="background-color: #f8f9fa;">
-                        </div>
-                    {% endif %}
-
                     <div class="mb-3">
                         {{ form.initial_requirements.label_tag }}
                         {{ form.initial_requirements }}
@@ -63,6 +60,10 @@
                         {% endif %}
                     </div>
                 </div>
+            </div>
+            <div class="mb-4">
+                <button type="submit" class="btn btn-primary">Обновить</button>
+                <a href="{% url 'orders:list' %}" class="btn btn-secondary">Отмена</a>
             </div>
 
             {% include "orders/blocks/_order_card.html" %}
@@ -90,10 +91,6 @@
             </div>
 
             <div class="mt-4">
-                <button type="submit" class="btn btn-primary">
-                    {% if is_edit %}Обновить заказ{% else %}Создать и взять заказ{% endif %}
-                </button>
-                <a href="{% url 'orders:list' %}" class="btn btn-secondary">Отмена</a>
                 {% if order.client_status == order.ClientStatuses.APPROVED %}
                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#invoiceModal">
                     Выставить счет

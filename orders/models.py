@@ -23,6 +23,9 @@ class Client(models.Model):
     phone = models.CharField(unique=True, help_text='Телефон для связи')
     telegram_id = models.BigIntegerField(null=True, unique=True)
 
+    class Meta:
+        ordering = ["name", "-phone"]
+
     def __str__(self):
         return self.name
 
@@ -53,12 +56,12 @@ class Order(models.Model):
 
     class ClientStatuses(models.TextChoices):
         NOT_ASSIGNED = ('NOT_ASSIGNED', 'Новый')
-        ASSIGNED = ('ASSIGNED', 'Менеджер принял заказ в работу')
-        WAIT_APPROVAL = ('WAIT_APPROVAL', 'На согласовании с клиентом')
-        APPROVED = ('APPROVED', 'Согласован клиентом')
+        ASSIGNED = ('ASSIGNED', 'В работе')
+        WAIT_APPROVAL = ('WAIT_APPROVAL', 'На согласовании')
+        APPROVED = ('APPROVED', 'Согласован')
         WAIT_PAYMENT = ('WAIT_PAYMENT', 'Ждет оплаты')
         PAID = ('PAID', 'Оплачен')
-        WAIT_SEND = ('WAIT_SEND', 'Ждет отправки у поставщиков')
+        WAIT_SEND = ('WAIT_SEND', 'Ждет отправки')
         DELIVERY = ('DELIVERY', 'Отправлен')
         READY = ('READY', 'Ждет выдачи в ПВЗ')
         FINISHED = ('FINISHED', 'Завершен')

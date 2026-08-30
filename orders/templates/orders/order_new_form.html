@@ -39,19 +39,18 @@
                     </div>
                 </div>
             </div>
-
-            {% include "orders/blocks/_order_card.html" %}
-
             <div class="alert alert-info mt-4">
                 Чтобы начать работу с заказом, нужно взять его в работу
             </div>
-
-            <div class="mt-4">
+            <div class="mb-4">
                 <button type="submit" class="btn btn-primary">
                     Взять в работу
                 </button>
                 <a href="{% url 'orders:list' %}" class="btn btn-secondary">Отмена</a>
             </div>
+
+
+            {% include "orders/blocks/_order_card.html" %}
         </form>
     </div>
 {% endblock orders_extra_content %}

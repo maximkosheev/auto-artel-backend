@@ -78,7 +78,7 @@ class Broker:
         self.send_notification_message({
             'to': client.id,
             'to_telegram_id': client.telegram_id,
-            'type': 'ORDER_AGREEMENT_REQUIRED',
+            'type': 'ORDER_ACTION_REQUIRED',
             'data': {
                 'text': f"Требуется согласие по вашему заказу #{order.id} от {order.created_date_formatted()}.\n"
                         f"Для согласования перейдите по ссылке ниже. Ссылка действует до {due_to_str}Мск",
@@ -92,7 +92,7 @@ class Broker:
         self.send_notification_message({
             'to': client.id,
             'to_telegram_id': client.telegram_id,
-            'type': 'ORDER_PAY_REQUIRED',
+            'type': 'ORDER_ACTION_REQUIRED',
             'data': {
                 'text': f"Требуется оплата по вашему заказу #{order.id} от {order.created_date_formatted()}.\n"
                         f"Для оплаты перейдите по ссылке ниже. Оплатить нужно в течении суток",

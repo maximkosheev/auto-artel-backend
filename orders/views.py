@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -20,7 +21,7 @@ from parts_providers import ProviderApiError
 from utils.date_utils import parse_date
 from .errors import BusinessError
 from .forms import OrderForm, OrderNewForm
-from .models import Order, Manager, OrderItem
+from .models import Order, Manager, OrderItem, Client
 from .urls_helper import OrderLinkGenerator, InvalidOrderLinkToken
 
 
@@ -101,6 +102,55 @@ class OrderListView(ManagerMixin, generic.ListView):
     template_name = 'orders/list.html'
     model = Order
     context_object_name = 'orders'
+
+    SORT_FIELDS = {
+        'id': 'id',
+        'created': 'created',
+    }
+    DEFAULT_SORT = ('-created', '-id')
+    PAGE_SIZE_CHOICES = (20, 50, 100, 150, 200)
+    DEFAULT_PAGE_SIZE = 20
+
+    def get_queryset(self):
+        where = Q()
+
+        try:
+            client_ids = {int(client_id) for client_id in self.request.GET.getlist('client')}
+        except (TypeError, ValueError):
+            client_ids = set()
+        if client_ids:
+            where &= Q(client_id__in=client_ids)
+
+        client_statuses = self.request.GET.getlist('client_status')
+        if client_statuses:
+            where &= Q(client_status__in=client_statuses)
+
+        if self.request.GET.get('mine') == '1':
+            where &= Q(manager=self.get_manager())
+
+        return Order.objects.filter(where).select_related('client', 'manager').order_by(*self.get_ordering())
+
+    def get_ordering(self):
+        field = self.SORT_FIELDS.get(self.request.GET.get('sort'))
+        if field is None:
+            return self.DEFAULT_SORT
+
+        direction = self.request.GET.get('dir')
+        prefix = '-' if direction == 'desc' else ''
+        return f'{prefix}{field}', f'{prefix}id'
+
+    def get_paginate_by(self, queryset):
+        try:
+            page_size = int(self.request.GET.get('page_size', self.DEFAULT_PAGE_SIZE))
+        except (TypeError, ValueError):
+            return self.DEFAULT_PAGE_SIZE
+        return page_size if page_size in self.PAGE_SIZE_CHOICES else self.DEFAULT_PAGE_SIZE
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['all_clients'] = Client.objects.all()
+        context['client_status_choices'] = Order.ClientStatuses.choices
+        return context
 
 
 class OrderDetailView(ManagerMixin, generic.UpdateView):
