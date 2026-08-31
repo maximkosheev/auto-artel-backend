@@ -312,11 +312,17 @@ function appendGroupHeader(tbody, label, colSpan) {
 function appendResultRow(tbody, item) {
   const tr    = document.createElement("tr");
   const count = parseInt(item.count) || 0;
+  const multiplicity = parseInt(item.multiplicity) || 1
+  const multiplicityBadge = multiplicity > 1 ? `
+          <span class="badge rounded-pill bg-primary lh-1" style="font-size:.65rem" title="Кратность">÷${multiplicity}</span>` : "";
   const addCell = HAS_ORDER ? `
     <td class="text-center align-middle" data-add-cell>
       <div class="d-flex align-items-center gap-1 justify-content-center">
-        <input type="number" class="form-control form-control-sm qty-input"
-               min="1" value="1" style="width:4rem">
+        <div class="d-flex flex-column align-items-end gap-1">
+          ${multiplicityBadge}
+          <input type="number" class="form-control form-control-sm qty-input"
+                 min="${multiplicity}" max="${count}" value="${multiplicity}" step="${multiplicity}" style="width:4rem">
+        </div>
         <button
           class="btn btn-sm btn-primary add-to-order-btn"
           title="Добавить в заказ"
@@ -362,10 +368,17 @@ function appendResultRow(tbody, item) {
 
 /* ── Add to order ── */
 function renderAddCell(cell, item) {
+  const count = parseInt(item.count) || 0;
+  const multiplicity = parseInt(item.multiplicity) || 1
+  const multiplicityBadge = multiplicity > 1 ? `
+      <span class="badge rounded-pill bg-primary lh-1" style="font-size:.65rem" title="Кратность">÷${multiplicity}</span>` : "";
   cell.innerHTML = `
     <div class="d-flex align-items-center gap-1 justify-content-center">
-      <input type="number" class="form-control form-control-sm qty-input"
-             min="1" value="1" style="width:4rem">
+      <div class="d-flex flex-column align-items-end gap-1">
+        ${multiplicityBadge}
+        <input type="number" class="form-control form-control-sm qty-input"
+               min="${multiplicity}" max="${count}" value="${multiplicity}" step="${multiplicity}" style="width:4rem">
+      </div>
       <button
         class="btn btn-sm btn-primary add-to-order-btn"
         title="Добавить в заказ"

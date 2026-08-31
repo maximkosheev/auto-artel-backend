@@ -151,6 +151,7 @@ class ArmTekProvider(AutoPartsProvider):
         result.name = search_pin_item.NAME
         result.price = search_pin_item.PRICE
         result.count = search_pin_item.RVALUE
+        result.multiplicity = search_pin_item.RDPRF
         if search_pin_item.DLVDT:
             result.delivery_time = datetime.strptime(search_pin_item.DLVDT, '%Y%m%d%H%M%S')
         result.warehouse_location = self.__map_warehouse_code(search_pin_item.KEYZAK)

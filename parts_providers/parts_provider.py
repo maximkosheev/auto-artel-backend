@@ -45,6 +45,7 @@ class SearchResultItem:
         self.count = None
         self.delivery_time = None
         self.warehouse_location = None
+        self.multiplicity = 1
 
 
 class AssortmentSearchResultItem:

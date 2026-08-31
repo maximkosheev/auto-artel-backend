@@ -127,6 +127,7 @@ class OrderItem(models.Model):
     manufacture = models.CharField(null=False, default='Производитель отсутствует', help_text='Производитель')
     name = models.CharField(null=False, default="Наименование отсутствует", help_text='Наименование')
     count = models.IntegerField(null=False, default=1, help_text='Количество')
+    multiplicity = models.IntegerField(null=False, default=1, help_text='Кратность')
     status = models.CharField(choices=Statuses, default=Statuses.DEFAULT)
     price = models.DecimalField(null=False, max_digits=19, decimal_places=2, default=0.0, help_text='Цена')
     discount = models.DecimalField(null=False, max_digits=5, decimal_places=2, default=0.00,

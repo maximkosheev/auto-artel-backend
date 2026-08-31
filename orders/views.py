@@ -285,6 +285,7 @@ class ItemsFullSearchResult(ManagerMixin, View):
                     "name": item.name,
                     "price": item.price,
                     "count": item.count,
+                    "multiplicity": item.multiplicity,
                     "delivery_time": item.delivery_time.strftime("%Y-%m-%d %H:%M") if item.delivery_time else None,
                     "warehouse_location": item.warehouse_location,
                 }
@@ -318,8 +319,11 @@ class OrderItemAdd(ManagerMixin, OrderIsMine, View):
         warehouse = data.get("warehouse_location")
         try:
             count = max(1, int(data.get("count", 1)))
+            multiplicity = max(1, int(data.get("multiplicity", 1)))
+            if count % multiplicity != 0:
+                raise ValueError
         except (TypeError, ValueError):
-            return JsonResponse({"error": "Invalid count value."}, status=400)
+            return JsonResponse({"error": f"Необходимо указать количество кратное указанному значению"}, status=400)
         discount = 0
         price = calc_final_price(purchase_price, count, discount, 30)
 
@@ -334,6 +338,7 @@ class OrderItemAdd(ManagerMixin, OrderIsMine, View):
             warehouse=warehouse,
             purchase_price=purchase_price,
             count=count,
+            multiplicity=multiplicity,
             discount=discount,
             price=price,
             status=OrderItem.Statuses.DEFAULT
@@ -352,7 +357,7 @@ class OrderItemAdd(ManagerMixin, OrderIsMine, View):
         }, status=201)
 
     def insert_or_update(self, order, article_number, internal_id, manufacture, name, provider, delivery_dt, warehouse,
-                         purchase_price, count, discount, price, status):
+                         purchase_price, count, multiplicity, discount, price, status):
 
         item = OrderItem.objects.filter(
             order=order,
@@ -376,6 +381,7 @@ class OrderItemAdd(ManagerMixin, OrderIsMine, View):
                 warehouse=warehouse,
                 purchase_price=purchase_price,
                 count=count,
+                multiplicity=multiplicity,
                 discount=discount,
                 price=price,
                 status=status
@@ -417,8 +423,8 @@ class OrderItemUpdateCount(ManagerMixin, OrderIsMine, View):
         try:
             data = json.loads(request.body.decode('utf-8'))
             count = int(data.get("count"))
-            if count < 1:
-                return JsonResponse({"error": "Count must be at least 1."}, status=400)
+            if count < 1 or count % item.mutiplicity != 0:
+                return JsonResponse({"error": f"Count must be at least 1 and must be a multiple of {item.mutiplicity}"}, status=400)
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         except (TypeError, ValueError):
