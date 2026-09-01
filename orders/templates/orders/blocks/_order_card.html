@@ -38,7 +38,7 @@
         {% for item in order.order_item_list.all %}
         <tr data-item-id="{{ item.id }}" data-status="{{ item.status }}">
             <td>
-                <input type="checkbox" class="form-check-input item-select-checkbox" data-item-id="{{ item.id }}">
+                <input type="checkbox" class="form-check-input item-select-checkbox" data-item-id="{{ item.id }}" data-item-status="{{ item.status }}">
             </td>
             <th scope="row">{{ item.article_number }}</th>
             <td>{{ item.manufacture }}</td>
@@ -46,9 +46,14 @@
             <td data-item-price>{{ item.price }}</td>
             <td>
                 <div class="d-flex align-items-center gap-2">
-                    <input type="number" inputmode="numeric" class="form-control form-control-sm count-input"
-                           style="width:5rem" min="1" step="1"
-                           value="{{ item.count }}" data-original-count="{{ item.count }}">
+                    <div class="d-flex flex-column align-items-end gap-1">
+                        {% if item.multiplicity > 1 %}
+                        <span class="badge rounded-pill bg-primary lh-1" style="font-size:.65rem" title="Кратность">÷{{ item.multiplicity }}</span>
+                        {% endif %}
+                        <input type="number" inputmode="numeric" class="form-control form-control-sm count-input"
+                               style="width:5rem" min="{{ item.multiplicity }}" step="{{ item.multiplicity }}"
+                               value="{{ item.count }}" data-original-count="{{ item.count }}">
+                    </div>
                     <button type="button" class="btn btn-sm btn-primary apply-count-btn d-none">
                         <span class="apply-count-text">Применить</span>
                         <span class="spinner-border spinner-border-sm d-none apply-count-spinner"></span>

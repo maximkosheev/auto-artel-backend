@@ -129,8 +129,17 @@ document.querySelectorAll('.item-select-checkbox').forEach((checkbox) => {
 });
 
 removeSelectedBtn.addEventListener('click', () => {
+  const STATUS_ALLOWED_TO_REMOVE = ['DEFAULT', 'REJECTED']
   const selected = getSelectedCheckboxes();
+
   if (selected.length === 0) return;
+
+  for (const cb of selected) {
+    if (STATUS_ALLOWED_TO_REMOVE.includes(cb.dataset.itemStatus)) {
+      alert('Вы выбрали позиции, статус которых не позволяет их удалить');
+      return
+    }
+  }
 
   removeItemsModalText.textContent = `Вы действительно хотите удалить выбранные позиции (${selected.length})?`;
   removeItemsModal.show();

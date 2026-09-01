@@ -301,6 +301,7 @@ class OrderItemAdd(ManagerMixin, OrderIsMine, View):
     def post(self, request, pk):
         try:
             data = json.loads(request.body.decode('utf-8'))
+            print(f"Adding new order item with data: {data}")
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, 400)
 
@@ -391,6 +392,8 @@ class OrderItemAdd(ManagerMixin, OrderIsMine, View):
 
 
 class OrderItemBulkRemove(ManagerMixin, OrderIsMine, View):
+    STATUSES_ALLOWED_TO_REMOVE = (OrderItem.Statuses.DEFAULT, OrderItem.Statuses.REJECTED)
+
     def delete(self, request, pk):
         try:
             data = json.loads(request.body.decode('utf-8'))
@@ -408,7 +411,7 @@ class OrderItemBulkRemove(ManagerMixin, OrderIsMine, View):
 
         deleted_count, _ = OrderItem.objects.filter(order=self.order,
                                                     id__in=item_ids,
-                                                    status=OrderItem.Statuses.DEFAULT).delete()
+                                                    status__in=self.STATUSES_ALLOWED_TO_REMOVE).delete()
 
         return JsonResponse({"success": True, "deleted": deleted_count})
 
@@ -423,8 +426,10 @@ class OrderItemUpdateCount(ManagerMixin, OrderIsMine, View):
         try:
             data = json.loads(request.body.decode('utf-8'))
             count = int(data.get("count"))
-            if count < 1 or count % item.mutiplicity != 0:
-                return JsonResponse({"error": f"Count must be at least 1 and must be a multiple of {item.mutiplicity}"}, status=400)
+            if count < 1:
+                return JsonResponse({"error": f"Количество должно быть не меньше 1"}, status=400)
+            elif count % item.multiplicity != 0:
+                return JsonResponse({"error": f"Количество должно быть кратно {item.multiplicity}"}, status=400)
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         except (TypeError, ValueError):
