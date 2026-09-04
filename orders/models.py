@@ -56,6 +56,7 @@ class Order(models.Model):
 
     class ClientStatuses(models.TextChoices):
         NOT_ASSIGNED = ('NOT_ASSIGNED', 'Новый')
+        CANCELED = ('CANCELED', 'Отменен')
         ASSIGNED = ('ASSIGNED', 'В работе')
         WAIT_APPROVAL = ('WAIT_APPROVAL', 'На согласовании')
         APPROVED = ('APPROVED', 'Согласован')
@@ -73,6 +74,7 @@ class Order(models.Model):
     created = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(default=timezone.now)
     initial_requirements = models.TextField()
+    payment_link = models.CharField(null=True, help_text='Ссылка на оплату')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

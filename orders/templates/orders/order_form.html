@@ -63,7 +63,10 @@
             </div>
             <div class="mb-4">
                 <button type="submit" class="btn btn-primary">Обновить</button>
-                <a href="{% url 'orders:list' %}" class="btn btn-secondary">Отмена</a>
+                {% if order.status == order.Statuses.PROCESSING %}
+                <button type="button" class="btn btn-danger" id="cancelOrderBtn">Отменить заказ</button>
+                {% endif %}
+                <a href="{% url 'orders:list' %}" class="btn btn-secondary">Назад к списку заказов</a>
             </div>
 
             {% include "orders/blocks/_order_card.html" %}
