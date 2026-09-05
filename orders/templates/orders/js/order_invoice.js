@@ -3,7 +3,7 @@
   const invoiceInput = document.getElementById('invoiceLinkInput');
   const invoiceModalEl = document.getElementById('invoiceModal');
 
-  if (!invoiceForm || !invoiceInput || !invoiceModalEl) {
+  if (!invoiceForm || !invoiceInput ) {
     return;
   }
 
@@ -18,11 +18,6 @@
   }
 
   invoiceInput.addEventListener('input', () => {
-    invoiceInput.classList.remove('is-invalid');
-  });
-
-  invoiceModalEl.addEventListener('show.bs.modal', () => {
-    invoiceInput.value = '';
     invoiceInput.classList.remove('is-invalid');
   });
 

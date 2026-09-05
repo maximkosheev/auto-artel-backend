@@ -24,6 +24,37 @@ from .forms import OrderForm, OrderNewForm
 from .models import Order, Manager, OrderItem, Client
 from .urls_helper import OrderLinkGenerator, InvalidOrderLinkToken
 
+ORDER_CLIENT_STATUSES = {
+    Order.ClientStatuses.CANCELED: 0,
+    Order.ClientStatuses.NOT_ASSIGNED: 1,
+    Order.ClientStatuses.ASSIGNED: 2,
+    Order.ClientStatuses.WAIT_APPROVAL: 3,
+    Order.ClientStatuses.APPROVED: 4,
+    Order.ClientStatuses.WAIT_PAYMENT: 5,
+    Order.ClientStatuses.PAID: 6,
+    Order.ClientStatuses.WAIT_SEND: 7,
+    Order.ClientStatuses.DELIVERY: 8,
+    Order.ClientStatuses.READY: 9,
+    Order.ClientStatuses.FINISHED: 10,
+}
+
+REVERSE_ORDER_CLIENT_STATUSES = {v: k for k, v in ORDER_CLIENT_STATUSES.items()}
+
+
+def has_next_order_client_status(current_client_status):
+    return ORDER_CLIENT_STATUSES[current_client_status] < ORDER_CLIENT_STATUSES[Order.ClientStatuses.FINISHED]
+
+
+def is_order_client_status_gte(order, client_status):
+    return ORDER_CLIENT_STATUSES[order.client_status] >= ORDER_CLIENT_STATUSES[client_status]
+
+
+def get_order_next_client_status(client_status):
+    order_next_client_status_id = ORDER_CLIENT_STATUSES[client_status] + 1
+    if order_next_client_status_id > ORDER_CLIENT_STATUSES[Order.ClientStatuses.FINISHED]:
+        raise IndexError('Index out of range')
+    return REVERSE_ORDER_CLIENT_STATUSES[order_next_client_status_id]
+
 
 def calc_final_price(purchase_price: Decimal, count: int, discount: int, extra: int):
     """
@@ -188,6 +219,15 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['page_title'] = f'Информация о заказе {self.object.client}'
+        # Проверяем, что заказ находится не на последнем шаге
+        if has_next_order_client_status(self.object.client_status):
+            # Начиная с определенного шага (в данном случае WAIT_PAYMENT), последовательность шагов имеет линейный
+            # характер. Т.е. мы точно знаем какой должен быть шаг в happy path, если просто укажем "перейти на следующий"
+            # Фактически allow_next_status как раз определяет, пересек ли заказ эту границу или нет. Если пересек,
+            # на странице должна появится кнопка, которая просто переведет заказ на следующий шаг, без дополнительных вопросов.
+            context['allow_next_status'] = is_order_client_status_gte(self.object, Order.ClientStatuses.WAIT_PAYMENT)
+            # Это как раз название этой самой кнопки перевода заказа на следующий шаг
+            context['btn_next_status_title'] = get_order_next_client_status(self.object.client_status).label
         return context
 
     def form_valid(self, form):
@@ -658,6 +698,20 @@ class OrderInvoiceView(ManagerMixin, OrderIsMine, View):
                 )
             broker.send_order_invoice_notification(order.client, order, invoice)
             messages.info(request, "Счет на оплату отправлен клиенту")
+        except Exception as ex:
+            messages.error(request, "Возникла непредвиденная ошибка. Обратитесь к администратору")
+
+        return redirect(reverse('orders:detail', kwargs={'pk': pk}))
+
+
+class OrderNextStatus(ManagerMixin, OrderIsMine, View):
+    def post(self, request, pk):
+        try:
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(pk=pk)
+                if has_next_order_client_status(order.client_status):
+                    order.update_client_status(get_order_next_client_status(order.client_status), commit=True)
+                messages.info(request, "Статус заказа обновлен")
         except Exception as ex:
             messages.error(request, "Возникла непредвиденная ошибка. Обратитесь к администратору")
 

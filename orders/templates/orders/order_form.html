@@ -63,79 +63,54 @@
             </div>
             <div class="mb-4">
                 <button type="submit" class="btn btn-primary">Обновить</button>
-                {% if order.status == order.Statuses.PROCESSING %}
-                <button type="button" class="btn btn-danger" id="cancelOrderBtn">Отменить заказ</button>
-                {% endif %}
                 <a href="{% url 'orders:list' %}" class="btn btn-secondary">Назад к списку заказов</a>
             </div>
-
-            {% include "orders/blocks/_order_card.html" %}
-
-            <!-- модальное окно подтверждения удаления выбранных позиций -->
-            <div class="modal fade" id="removeItemsModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Удаление позиций</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p id="removeItemsModalText"></p>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                            <button type="button" class="btn btn-danger" id="confirmRemoveItemsBtn">
-                                <span class="confirm-remove-text">Удалить</span>
-                                <span class="spinner-border spinner-border-sm d-none confirm-remove-spinner"></span>
-                            </button>
-                        </div>
+        </form>
+        <div class="mt-4 mb-4">
+            {% if order.client_status == order.ClientStatuses.APPROVED %}
+            <form id="invoiceForm" method="post" action="{% url 'orders:invoice' order.id %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="invoiceLinkInput" class="form-label">Ссылка на оплату</label>
+                    <input type="url" class="form-control" id="invoiceLinkInput" name="invoice_link"
+                           form="invoiceForm" placeholder="https://..." required>
+                    <div class="invalid-feedback" id="invoiceLinkError">
+                        Введите корректную ссылку (например, https://example.com).
                     </div>
                 </div>
-            </div>
+                <button type="submit" class="btn btn-success">Выставить счет</button>
+            </form>
+            {% elif allow_next_status %}
+            <form method="post" action="{% url 'orders:next-status' order.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success">{{ btn_next_status_title }}</button>
+            </form>
+            {% endif %}
+        </div>
+        {% include "orders/blocks/_order_card.html" %}
 
-            <div class="mt-4">
-                {% if order.client_status == order.ClientStatuses.APPROVED %}
-                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#invoiceModal">
-                    Выставить счет
-                </button>
-                {% endif %}
-            </div>
-        </form>
-
-        {% if order.client_status == order.ClientStatuses.APPROVED %}
-        <!-- скрытая форма для отправки счета на оплату, вынесена за пределы основной формы,
-             т.к. вложенные <form> в HTML не допускаются; поле ввода и кнопка "Отправить"
-             в модальном окне ниже привязаны к ней через атрибут form="invoiceForm" -->
-        <form id="invoiceForm" method="post" action="{% url 'orders:invoice' order.id %}" class="d-none">
-            {% csrf_token %}
-        </form>
-
-        <!-- модальное окно выставления счета на оплату -->
-        <div class="modal fade" id="invoiceModal" tabindex="-1" aria-labelledby="invoiceModalLabel" aria-hidden="true">
+        <!-- модальное окно подтверждения удаления выбранных позиций -->
+        <div class="modal fade" id="removeItemsModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="invoiceModalLabel">Выставление счета</h5>
+                        <h5 class="modal-title">Удаление позиций</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="invoiceLinkInput" class="form-label">Ссылка на оплату</label>
-                            <input type="url" class="form-control" id="invoiceLinkInput" name="invoice_link"
-                                   form="invoiceForm" placeholder="https://..." required>
-                            <div class="invalid-feedback" id="invoiceLinkError">
-                                Введите корректную ссылку (например, https://example.com).
-                            </div>
-                        </div>
+                        <p id="removeItemsModalText"></p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                        <button type="submit" class="btn btn-primary" id="invoiceSubmitBtn" form="invoiceForm">Отправить</button>
+                        <button type="button" class="btn btn-danger" id="confirmRemoveItemsBtn">
+                            <span class="confirm-remove-text">Удалить</span>
+                            <span class="spinner-border spinner-border-sm d-none confirm-remove-spinner"></span>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
-        {% endif %}
+
     </div>
 {% endblock orders_extra_content %}
 

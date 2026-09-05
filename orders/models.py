@@ -55,8 +55,8 @@ class Order(models.Model):
         COMPLETED = ('COMPLETED', 'Завершен')
 
     class ClientStatuses(models.TextChoices):
-        NOT_ASSIGNED = ('NOT_ASSIGNED', 'Новый')
         CANCELED = ('CANCELED', 'Отменен')
+        NOT_ASSIGNED = ('NOT_ASSIGNED', 'Новый')
         ASSIGNED = ('ASSIGNED', 'В работе')
         WAIT_APPROVAL = ('WAIT_APPROVAL', 'На согласовании')
         APPROVED = ('APPROVED', 'Согласован')
@@ -74,7 +74,7 @@ class Order(models.Model):
     created = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(default=timezone.now)
     initial_requirements = models.TextField()
-    payment_link = models.CharField(null=True, help_text='Ссылка на оплату')
+    #payment_link = models.CharField(null=True, help_text='Ссылка на оплату')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -102,8 +102,13 @@ class Order(models.Model):
             self.client_status_changed = True
         self.client_status = client_status
         self.updated = timezone.now()
+        if self.client_status == Order.ClientStatuses.FINISHED:
+            self.status = Order.Statuses.COMPLETED
+        elif self.client_status == Order.ClientStatuses.CANCELED:
+            self.status = Order.Statuses.CANCELED
+
         if commit:
-            self.save(update_fields=['client_status', 'updated'])
+            self.save(update_fields=['status', 'client_status', 'updated'])
 
     def created_date_formatted(self, template: str | None = None):
         if self.created_date is not None:
