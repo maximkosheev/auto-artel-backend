@@ -152,3 +152,8 @@ class OrderItem(models.Model):
 
     def client_short_str(self):
         return f"{self.name};{self.manufacture}; Кол-во:{self.count}; Цена:{self.price}"
+
+
+class ArmTekOrder(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='armtek_order_list')
+    creation_api_response = models.TextField(null=True, help_text='Ответ API при создании заказа')

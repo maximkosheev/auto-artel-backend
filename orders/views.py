@@ -25,35 +25,32 @@ from .models import Order, Manager, OrderItem, Client
 from .urls_helper import OrderLinkGenerator, InvalidOrderLinkToken
 
 ORDER_CLIENT_STATUSES = {
-    Order.ClientStatuses.CANCELED: 0,
-    Order.ClientStatuses.NOT_ASSIGNED: 1,
-    Order.ClientStatuses.ASSIGNED: 2,
-    Order.ClientStatuses.WAIT_APPROVAL: 3,
-    Order.ClientStatuses.APPROVED: 4,
-    Order.ClientStatuses.WAIT_PAYMENT: 5,
-    Order.ClientStatuses.PAID: 6,
-    Order.ClientStatuses.WAIT_SEND: 7,
-    Order.ClientStatuses.DELIVERY: 8,
-    Order.ClientStatuses.READY: 9,
-    Order.ClientStatuses.FINISHED: 10,
+    Order.ClientStatuses.CANCELED:          {'index': 0, 'can_move_next': False},
+    Order.ClientStatuses.NOT_ASSIGNED:      {'index': 1, 'can_move_next': False},
+    Order.ClientStatuses.ASSIGNED:          {'index': 2, 'can_move_next': False},
+    Order.ClientStatuses.WAIT_APPROVAL:     {'index': 3, 'can_move_next': False},
+    Order.ClientStatuses.APPROVED:          {'index': 4, 'can_move_next': False},
+    Order.ClientStatuses.WAIT_PAYMENT:      {'index': 5, 'can_move_next': True},
+    Order.ClientStatuses.PAID:              {'index': 6, 'can_move_next': False},
+    Order.ClientStatuses.WAIT_SEND:         {'index': 7, 'can_move_next': True},
+    Order.ClientStatuses.DELIVERY:          {'index': 8, 'can_move_next': True},
+    Order.ClientStatuses.READY:             {'index': 9, 'can_move_next': True},
+    Order.ClientStatuses.FINISHED:          {'index': 10, 'can_move_next': False},
 }
-
-REVERSE_ORDER_CLIENT_STATUSES = {v: k for k, v in ORDER_CLIENT_STATUSES.items()}
 
 
 def has_next_order_client_status(current_client_status):
-    return ORDER_CLIENT_STATUSES[current_client_status] < ORDER_CLIENT_STATUSES[Order.ClientStatuses.FINISHED]
-
-
-def is_order_client_status_gte(order, client_status):
-    return ORDER_CLIENT_STATUSES[order.client_status] >= ORDER_CLIENT_STATUSES[client_status]
+    return (ORDER_CLIENT_STATUSES[current_client_status]['index']
+            < ORDER_CLIENT_STATUSES[Order.ClientStatuses.FINISHED]['index'])
 
 
 def get_order_next_client_status(client_status):
-    order_next_client_status_id = ORDER_CLIENT_STATUSES[client_status] + 1
-    if order_next_client_status_id > ORDER_CLIENT_STATUSES[Order.ClientStatuses.FINISHED]:
+    order_next_client_status_id = ORDER_CLIENT_STATUSES[client_status]['index'] + 1
+    if order_next_client_status_id > ORDER_CLIENT_STATUSES[Order.ClientStatuses.FINISHED]['index']:
         raise IndexError('Index out of range')
-    return REVERSE_ORDER_CLIENT_STATUSES[order_next_client_status_id]
+    for k, v in ORDER_CLIENT_STATUSES:
+        if v['index'] == order_next_client_status_id:
+            return k
 
 
 def calc_final_price(purchase_price: Decimal, count: int, discount: int, extra: int):
@@ -225,7 +222,7 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
             # характер. Т.е. мы точно знаем какой должен быть шаг в happy path, если просто укажем "перейти на следующий"
             # Фактически allow_next_status как раз определяет, пересек ли заказ эту границу или нет. Если пересек,
             # на странице должна появится кнопка, которая просто переведет заказ на следующий шаг, без дополнительных вопросов.
-            context['allow_next_status'] = is_order_client_status_gte(self.object, Order.ClientStatuses.WAIT_PAYMENT)
+            context['allow_next_status'] = ORDER_CLIENT_STATUSES[self.object.client_status]['can_move_next']
             # Это как раз название этой самой кнопки перевода заказа на следующий шаг
             context['btn_next_status_title'] = get_order_next_client_status(self.object.client_status).label
         return context
@@ -690,7 +687,9 @@ class OrderInvoiceView(ManagerMixin, OrderIsMine, View):
         try:
             with transaction.atomic():
                 order = Order.objects.select_for_update().get(pk=pk)
-                order.update_client_status(Order.ClientStatuses.WAIT_PAYMENT, commit=True)
+                order.update_client_status(Order.ClientStatuses.WAIT_PAYMENT)
+                order.invoice_link = invoice
+                order.save()
                 ChatMessage.objects.create(
                     client=order.client,
                     manager=self.get_manager(),

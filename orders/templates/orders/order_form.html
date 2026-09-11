@@ -80,6 +80,19 @@
                 </div>
                 <button type="submit" class="btn btn-success">Выставить счет</button>
             </form>
+            {% elif order.client_status == order.ClientStatuses.PAID %}
+            <form id="createOrderForm" method="post" action="{% url 'order:create_it' order.id %}">
+                {% csrf_token %}
+                <div class="alert alert-warn alert-dismissible fade show">
+                    На момент создания заказа, данные по позициям (цены, сроки поставки и пр.) могут отличаться от тех, что были перед началом согласования.
+                    Перед созданием заказов у поставщиков, рекомендуем проверить актуальность данных.
+                    Если потребуется, проведите согласование с клиентом повторно.
+                </div>
+                <div class="alert alert-info alert-dismissible fade show">
+                    В дальнейшем тут появится кнопка обновить данные. А пока проверьте вручную.
+                </div>
+                <button type="submit" class="btn btn-success">Оформить заказ</button>
+            </form>
             {% elif allow_next_status %}
             <form method="post" action="{% url 'orders:next-status' order.id %}">
                 {% csrf_token %}
