@@ -1,3 +1,7 @@
+import decimal
+import math
+
+from datetime import date, datetime, timedelta
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -74,7 +78,8 @@ class Order(models.Model):
     created = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(default=timezone.now)
     initial_requirements = models.TextField()
-    #payment_link = models.CharField(null=True, help_text='Ссылка на оплату')
+    invoice_link = models.CharField(null=True, help_text='Ссылка на оплату')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, related_name='additional_order_list')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -125,10 +130,14 @@ class OrderItem(models.Model):
         AGREEMENT = 'AGREEMENT', 'На согласовании'
         APPROVED = 'APPROVED', 'Согласован клиентом'
         REJECTED = 'REJECTED', 'Отклонён клиентом'
-        READY_FOR_ORDER = 'READY_FOR_ORDER', 'Готов к заказу'
+
         ORDERED = 'ORDERED', 'Заказан',
         HALF_ORDERED = 'HALF_ORDERED', 'Заказан частично'
-        READY = 'READY', 'Ждет выдачи в ПВЗ'
+        ORDER_FAILED = 'ORDER_FAILED', 'Ошибка заказа'
+
+    class Providers(models.TextChoices):
+        ARMTEK = ('ARMTEK', 'ARMTEK')
+
     id = models.BigAutoField(primary_key=True)
     article_number = models.CharField(null=False, default='Артикул отсутствует', help_text='Артикул')
     manufacture = models.CharField(null=False, default='Производитель отсутствует', help_text='Производитель')
@@ -136,24 +145,72 @@ class OrderItem(models.Model):
     count = models.IntegerField(null=False, default=1, help_text='Количество')
     multiplicity = models.IntegerField(null=False, default=1, help_text='Кратность')
     status = models.CharField(choices=Statuses, default=Statuses.DEFAULT)
-    price = models.DecimalField(null=False, max_digits=19, decimal_places=2, default=0.0, help_text='Цена')
-    discount = models.DecimalField(null=False, max_digits=5, decimal_places=2, default=0.00,
-                                   help_text='Скидка. 0 - 100% оплаты; 0.1 - скидка 10%')
-
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_item_list')
-    confirmed = models.BooleanField(default=False, help_text='Признак, что данная позиция утверждена в заказе')
-
-    provider = models.CharField(null=True, help_text='Поставщик, например, ArmTek')
-    delivery_dt = models.DateTimeField(null=True, help_text='Дата поставки, заявленная поставщиком')
-    warehouse = models.CharField(null=True, help_text='Склад поставщика')
-    internal_id = models.CharField(null=True, help_text='Внутренний идентификатор запчасти у поставщика')
     purchase_price = models.DecimalField(null=True, max_digits=19, decimal_places=2,
                                          help_text='Цена у поставщица (цена закупки)')
+    discount = models.DecimalField(null=False, max_digits=5, decimal_places=2, default=0.00,
+                                   help_text='Скидка. 0 - без скидки; 10 - скидка 10%; 100 - бесплатно')
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_item_list')
+
+    provider = models.CharField(null=True, choices=Providers, default=Providers.ARMTEK,
+                                help_text='Поставщик, например, ArmTek')
+
+    delivery_time = models.IntegerField(null=True, help_text='Кол-во дней на доставку')
+
+    warehouse_code = models.CharField(null=True, help_text='Код склада')
+    warehouse = models.CharField(null=True, help_text='Склад поставщика')
+
+    total_count = models.IntegerField(null=True, help_text='Общее кол-во у поставщика')
+
+    @property
+    def extra_price(self):
+        """
+        Надбавка
+        @return:
+        """
+        return decimal.Decimal("0.3")
+
+    @property
+    def extra_price_display(self):
+        return (self.extra_price * decimal.Decimal("100.0")).quantize(decimal.Decimal("1"))
+
+    @property
+    def price(self):
+        # скидка
+        discount = self.discount / decimal.Decimal("100.0")
+        if self.purchase_price:
+            purchase_price = self.purchase_price
+        else:
+            purchase_price = 1
+        # цена с учетом надбавки
+        extra_price = purchase_price + purchase_price * self.extra_price
+        # цена с учетом надбавки и скидки
+        final_price = extra_price - extra_price * discount
+        return final_price.quantize(decimal.Decimal("1.00"))
+
+    @property
+    def total_price(self):
+        fifty = decimal.Decimal("50.0")
+
+        return (math.ceil(self.price * self.count / fifty) * fifty).quantize(decimal.Decimal("1.00"))
+
+    @property
+    def delivery_date(self):
+        if self.delivery_time:
+            return date.today() + timedelta(days=self.delivery_time)
+        else:
+            return None
 
     def client_short_str(self):
         return f"{self.name};{self.manufacture}; Кол-во:{self.count}; Цена:{self.price}"
 
+    def equals_by_params(self, article, manufacture, warehouse_code):
+        return (self.article_number == article
+                and self.manufacture == manufacture
+                and self.warehouse_code == warehouse_code)
+
+
 
 class ArmTekOrder(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='armtek_order_list')
-    creation_api_response = models.TextField(null=True, help_text='Ответ API при создании заказа')
+    creation_api_response = models.JSONField(null=True, help_text='Ответ API при создании заказа')

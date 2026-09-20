@@ -17,7 +17,7 @@ document.querySelectorAll('tr[data-item-id]').forEach((row) => {
   const applyText = row.querySelector('.apply-count-text');
   const applySpinner = row.querySelector('.apply-count-spinner');
   const errorEl = row.querySelector('.count-error');
-  const priceCell = row.querySelector('[data-item-price]');
+  const priceCell = row.querySelector('[data-item-total-price]');
   const itemId = row.dataset.itemId;
 
   function hideError() {
@@ -89,7 +89,7 @@ document.querySelectorAll('tr[data-item-id]').forEach((row) => {
 
       input.value = data.item.count;
       input.dataset.originalCount = String(data.item.count);
-      priceCell.textContent = formatPrice(data.item.price);
+      priceCell.textContent = formatPrice(data.item.total_price);
       applyBtn.classList.add('d-none');
     } catch (err) {
       showError('Сетевая ошибка. Попробуйте снова.');
@@ -135,7 +135,7 @@ removeSelectedBtn.addEventListener('click', () => {
   if (selected.length === 0) return;
 
   for (const cb of selected) {
-    if (STATUS_ALLOWED_TO_REMOVE.includes(cb.dataset.itemStatus)) {
+    if (!STATUS_ALLOWED_TO_REMOVE.includes(cb.dataset.itemStatus)) {
       alert('Вы выбрали позиции, статус которых не позволяет их удалить');
       return
     }

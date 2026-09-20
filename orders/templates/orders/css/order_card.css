@@ -14,6 +14,10 @@
     background-color: #FD7C6E !important;
 }
 
+.order-item-status.order_failed {
+    background-color: #FD0000 !important;
+}
+
 .order-item-status.approved {
     background-color: #20c997 !important;
 }

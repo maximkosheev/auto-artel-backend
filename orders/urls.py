@@ -12,10 +12,12 @@ from .views import (OrderListView,
                     OrderItemBulkAgreement,
                     OrderItemsAgreementConfirmView,
                     OrderClientApproveView,
-                    OrderInvoiceView, OrderNextStatus)
+                    OrderInvoiceView,
+                    OrderCreateView,
+                    OrderNextStatus,
+                    OrderCreateAdditionalView)
 
 app_name = 'orders'
-
 
 urlpatterns = [
     path('', OrderListView.as_view(), name='list'),
@@ -28,8 +30,11 @@ urlpatterns = [
     path('<int:pk>/items/agreement/confirm/', OrderItemsAgreementConfirmView.as_view(), name='agreement_confirm'),
     path('<int:pk>/items/<int:item_pk>/update-count', OrderItemUpdateCount.as_view(), name='update_order_item_count'),
     path('<int:pk>/invoice/', OrderInvoiceView.as_view(), name='invoice'),
+    path('<int:pk>/create-additional', OrderCreateAdditionalView.as_view(), name="create_additional"),
+    path('<int:pk>/create/', OrderCreateView.as_view(), name="create"),
     path('<int:pk>/next-status', OrderNextStatus.as_view(), name='next-status'),
     path('parts/search/', PartsSearchView.as_view(), name='parts_search'),
     path('items-search/results', AssortmentSearchResult.as_view(), name='assortment_search_results'),
     path('items-search/full-results', ItemsFullSearchResult.as_view(), name='items_full_search_results'),
 ]
+

@@ -305,13 +305,13 @@
                                        class="item-checkbox"
                                        name="item_ids"
                                        value="{{ item.id }}"
-                                       data-price="{{ item.price }}"
+                                       data-price="{{ item.total_price }}"
                                        {% if item.status == 'APPROVED' %}checked{% endif %}>
                                 <input type="hidden" name="known_item_ids" value="{{ item.id }}">
                                 <span class="item-body">
                                     <span class="item-main">
                                         <span class="item-name">{{ item.name|truncatechars:20 }}</span>
-                                        <span class="item-price">{{ item.price }}&nbsp;₽</span>
+                                        <span class="item-price">{{ item.total_price }}&nbsp;₽</span>
                                     </span>
                                     <span class="item-meta">{{ item.manufacture }} · {{ item.count }}&nbsp;шт.</span>
                                 </span>

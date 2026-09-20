@@ -24,7 +24,7 @@ class ClientStatusField(serializers.ChoiceField):
 
 class OrderSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
-    client_status = ClientStatusField(choices=Order.ClientStatuses, read_only=True)
+    client_status = ClientStatusField(choices=Order.ClientStatuses.choices, read_only=True)
     manager = ManagerNameField(required=False, read_only=True)
     created = serializers.DateTimeField()
     initial_requirements = serializers.CharField(read_only=True)

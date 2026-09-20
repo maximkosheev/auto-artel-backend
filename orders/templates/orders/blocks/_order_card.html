@@ -27,8 +27,14 @@
             <th>Код</th>
             <th>Производитель</th>
             <th>Наименование</th>
-            <th>Цена</th>
+            <th>Поставщик</th>
             <th>Кол-во</th>
+            <th>Кол-во на складе</th>
+            <th>Цена закупки</th>
+            <th>Скидка</th>
+            <th>Надбавка</th>
+            <th>Цена продажи</th>
+            <th>Стоимость</th>
             <th>Срок доставки</th>
             <th>Склад</th>
             <th>Статус</th>
@@ -43,7 +49,7 @@
             <th scope="row">{{ item.article_number }}</th>
             <td>{{ item.manufacture }}</td>
             <td>{{ item.name }}</td>
-            <td data-item-price>{{ item.price }}</td>
+            <td>{{ item.get_provider_display }}</td>
             <td>
                 <div class="d-flex align-items-center gap-2">
                     <div class="d-flex flex-column align-items-end gap-1">
@@ -61,7 +67,14 @@
                 </div>
                 <div class="text-danger small count-error d-none"></div>
             </td>
-            <td>{{ item.delivery_time }}</td>
+            <td>{{ item.total_count }}</td>
+
+            <td>{{ item.purchase_price }}</td>
+            <td>{{ item.discount|floatformat:0 }}</td>
+            <td>{{ item.extra_price_display }}</td>
+            <td>{{ item.price }}</td>
+            <td data-item-total-price>{{ item.total_price }}</td>
+            <td>{{ item.delivery_date|date:"d.m.Y" }}</td>
             <td>{{ item.warehouse }}</td>
             <td><span class="order-item-status {{ item.status|lower }}">{{ item.get_status_display }}</span></td>
         </tr>

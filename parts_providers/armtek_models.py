@@ -5,12 +5,23 @@ import pydantic
 from pydantic import ConfigDict, BeforeValidator, PlainSerializer
 
 
+class MESSAGE(pydantic.BaseModel):
+    # A - критическая ошибка
+    # E - ошибка
+    # S - успешное сообщение
+    # W - предупреждение
+    # I - информационное сообщение
+    TYPE: str
+    TEXT: str
+    DATE: str
+
+
 class ArmTekResponse(pydantic.BaseModel):
     """
     Базовое тело ответа от ArmTEK
     """
     STATUS: int
-    MESSAGES: list[str]
+    MESSAGES: list[MESSAGE]
 
 
 class WarehouseData(pydantic.BaseModel):
@@ -181,6 +192,8 @@ SAPTimestamp = Annotated[
 # Описание результатов создания заказа
 #
 class OrderItemResult_ITEM(pydantic.BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
     POSID: str | None = None
     POSNR: str | None = None
     KEYZAK: str | None = None
@@ -196,6 +209,8 @@ class OrderItemResult_ITEM(pydantic.BaseModel):
 
 
 class CreateOrderResponse_ITEM(pydantic.BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
     PIN: str | None = None
     BRAND: str | None = None
     KEYZAK: str | None = None
@@ -209,3 +224,13 @@ class CreateOrderResponse_ITEM(pydantic.BaseModel):
     REMAIN: int | None = None
     ERROR: int | None = None
     ERROR_MESSAGE: str | None = None
+
+
+class CreateOrderRESP(pydantic.BaseModel):
+    ITEMS: list[CreateOrderResponse_ITEM]
+
+
+class CreateOrderResponse(ArmTekResponse):
+    model_config = ConfigDict(extra='ignore')
+
+    RESP: CreateOrderRESP | None

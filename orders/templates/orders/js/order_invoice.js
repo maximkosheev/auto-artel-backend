@@ -1,7 +1,8 @@
 (function () {
   const invoiceForm = document.getElementById('invoiceForm');
   const invoiceInput = document.getElementById('invoiceLinkInput');
-  const invoiceModalEl = document.getElementById('invoiceModal');
+  const submitInvoiceBtn = document.getElementById('submitInvoiceBtn');
+  const skipInvoiceBtn = document.getElementById('skipInvoiceBtn');
 
   if (!invoiceForm || !invoiceInput ) {
     return;
@@ -22,11 +23,20 @@
   });
 
   invoiceForm.addEventListener('submit', (event) => {
-    const value = invoiceInput.value.trim();
-    if (!isValidHttpUrl(value)) {
-      event.preventDefault();
-      invoiceInput.classList.add('is-invalid');
-      invoiceInput.focus();
+
+    const submitButton = event.submitter;
+
+    if (submitButton === skipInvoiceBtn) {
+        // Clear invoice URL if it has already been filled, and submit
+        invoiceInput.value = '';
+    } else if (submitButton === submitInvoiceBtn) {
+        // Validate invoice link and submit
+        const value = invoiceInput.value.trim();
+        if (!isValidHttpUrl(value)) {
+          event.preventDefault();
+          invoiceInput.classList.add('is-invalid');
+          invoiceInput.focus();
+        }
     }
   });
 })();

@@ -1,7 +1,6 @@
 import json
 import logging
-import math
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -21,7 +20,7 @@ from parts_providers import ProviderApiError
 from utils.date_utils import parse_date
 from .errors import BusinessError
 from .forms import OrderForm, OrderNewForm
-from .models import Order, Manager, OrderItem, Client
+from .models import Order, Manager, OrderItem, Client, ArmTekOrder
 from .urls_helper import OrderLinkGenerator, InvalidOrderLinkToken
 
 ORDER_CLIENT_STATUSES = {
@@ -48,30 +47,9 @@ def get_order_next_client_status(client_status):
     order_next_client_status_id = ORDER_CLIENT_STATUSES[client_status]['index'] + 1
     if order_next_client_status_id > ORDER_CLIENT_STATUSES[Order.ClientStatuses.FINISHED]['index']:
         raise IndexError('Index out of range')
-    for k, v in ORDER_CLIENT_STATUSES:
+    for k, v in ORDER_CLIENT_STATUSES.items():
         if v['index'] == order_next_client_status_id:
             return k
-
-
-def calc_final_price(purchase_price: Decimal, count: int, discount: int, extra: int):
-    """
-    @param purchase_price: цена закупки
-    @param count: количество
-    @param discount: скидка (0 - без скидки; 100 - бесплатно)
-    @param extra: надбавка (в процентах)
-    @return: итоговая стоимость
-    """
-    # стоимость закупки
-    purchase_cost = purchase_price * count
-    # наша надбавка
-    extra_cost = purchase_cost * extra / 100
-    # надбавка с учетом скидки
-    extra_with_discount = extra_cost * (100 - discount) / 100
-    # итоговая стоимость = стоимость закупки + надбавка с учетом скидки
-    price_with_discount = purchase_cost + extra_with_discount
-    # округляем до большего кратного 50р
-    final_price = math.ceil(price_with_discount / 50) * 50
-    return final_price
 
 
 def is_manager(user):
@@ -188,7 +166,11 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
         return self.object.manager is not None and self.object.manager != self.get_manager()
 
     def get_template_names(self):
-        if self.object.manager is None:
+        if self.object.client_status == Order.ClientStatuses.FINISHED:
+            return ['orders/order_finished_form.html']
+        elif self.object.client_status == Order.ClientStatuses.CANCELED:
+            return ['orders/order_canceled_form.html']
+        elif self.object.manager is None:
             return ['orders/order_new_form.html']
         elif self.order_is_not_available_to_me():
             return ['orders/order_lock_form.html']
@@ -215,6 +197,7 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['additional_order_list'] = self.object.additional_order_list.all
         context['page_title'] = f'Информация о заказе {self.object.client}'
         # Проверяем, что заказ находится не на последнем шаге
         if has_next_order_client_status(self.object.client_status):
@@ -243,7 +226,6 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
                 messages.error(self.request, f'Ошибка при сохранении заказа: {str(e)}')
                 return self.form_invalid(form)
         else:
-            print(f"form or formset are not valid")
             return self.form_invalid(form)
 
     def form_invalid(self, form):
@@ -320,11 +302,12 @@ class ItemsFullSearchResult(ManagerMixin, View):
                     "internal_art_id": item.internal_art_id,
                     "manufacture": item.manufacture,
                     "name": item.name,
-                    "price": item.price,
-                    "count": item.count,
+                    "purchase_price": item.purchase_price,
+                    "total_count": item.total_count,
                     "multiplicity": item.multiplicity,
                     "delivery_time": item.delivery_time.strftime("%Y-%m-%d %H:%M") if item.delivery_time else None,
                     "warehouse_location": item.warehouse_location,
+                    "warehouse_code": item.warehouse_code
                 }
                 for item in results
             ]
@@ -338,90 +321,115 @@ class OrderItemAdd(ManagerMixin, OrderIsMine, View):
     def post(self, request, pk):
         try:
             data = json.loads(request.body.decode('utf-8'))
-            print(f"Adding new order item with data: {data}")
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, 400)
 
         article_number = data.get("article_number", "").strip()
         if not article_number:
             return JsonResponse({"error": "article_number is required."}, status=400)
-        internal_art_id = data.get("internal_art_id", "").strip()
         manufacture = data.get("manufacture", "").strip()
         name = data.get("name", "").strip()
-        provider = data.get("provider", "armtek")
         try:
-            purchase_price = Decimal(str(data.get("price")))
+            provider_name = data.get("provider", "ARMTEK").upper()
+            provider = getattr(OrderItem.Providers, provider_name)
+        except AttributeError:
+            return JsonResponse({"error": "Неизвестный поставщик"}, status=400)
+
+        try:
+            purchase_price = Decimal(str(data.get("purchase_price")))
         except (InvalidOperation, TypeError):
-            return JsonResponse({"error": "Invalid price value."}, status=400)
+            return JsonResponse({"error": "Некорректное значение цены закупки"}, status=400)
+
         delivery_dt = parse_date(data.get("delivery_time"), '%Y-%m-%d %H:%M')
+        if delivery_dt:
+            delivery_time = (delivery_dt.date() - date.today()).days
+        else:
+            delivery_time = 1
+
         warehouse = data.get("warehouse_location")
+        warehouse_code = data.get("warehouse_code")
+
         try:
+            total_count = int(data.get("total_count", "0"))
             count = max(1, int(data.get("count", 1)))
             multiplicity = max(1, int(data.get("multiplicity", 1)))
+            if count > total_count:
+                raise ValueError("Количество больше максимально допустимого")
             if count % multiplicity != 0:
-                raise ValueError
-        except (TypeError, ValueError):
-            return JsonResponse({"error": f"Необходимо указать количество кратное указанному значению"}, status=400)
+                raise ValueError("Указанное количество должно быть кратно указанному значению")
+        except TypeError:
+            return JsonResponse({"error": "Некорректный формат числа"}, status=400)
+        except ValueError as ex:
+            return JsonResponse({"error": f"{ex}"}, status=400)
+
         discount = 0
-        price = calc_final_price(purchase_price, count, discount, 30)
+        try:
+            order_item = self.insert_or_update(
+                order=self.order,
+                article_number=article_number,
+                manufacture=manufacture,
+                name=name,
+                provider=provider,
+                delivery_time=delivery_time,
+                warehouse=warehouse,
+                warehouse_code=warehouse_code,
+                count=count,
+                multiplicity=multiplicity,
+                total_count=total_count,
+                purchase_price=purchase_price,
+                discount=discount,
+                status=OrderItem.Statuses.DEFAULT
+            )
+        except ValueError as ex:
+            return JsonResponse({"error": f"{ex}"}, status=400)
 
-        order_item = self.insert_or_update(
-            order=self.order,
-            article_number=article_number,
-            internal_id=internal_art_id,
-            manufacture=manufacture,
-            name=name,
-            provider=provider,
-            delivery_dt=delivery_dt,
-            warehouse=warehouse,
-            purchase_price=purchase_price,
-            count=count,
-            multiplicity=multiplicity,
-            discount=discount,
-            price=price,
-            status=OrderItem.Statuses.DEFAULT
-        )
+        return JsonResponse({"success": True}, status=201)
 
-        return JsonResponse({
-            "success": True,
-            "item": {
-                "id": order_item.id,
-                "article_number": order_item.article_number,
-                "manufacture": order_item.manufacture,
-                "name": order_item.name,
-                "count": order_item.count,
-                "price": str(order_item.price),
-            },
-        }, status=201)
-
-    def insert_or_update(self, order, article_number, internal_id, manufacture, name, provider, delivery_dt, warehouse,
-                         purchase_price, count, multiplicity, discount, price, status):
+    def insert_or_update(self,
+                         order,
+                         article_number,
+                         manufacture,
+                         name,
+                         provider,
+                         delivery_time,
+                         warehouse,
+                         warehouse_code,
+                         purchase_price,
+                         discount,
+                         count,
+                         multiplicity,
+                         total_count,
+                         status):
 
         item = OrderItem.objects.filter(
             order=order,
             article_number=article_number,
-            internal_id=internal_id
+            manufacture=manufacture,
+            name=name,
+            provider=provider,
+            warehouse_code=warehouse_code
         ).first()
 
         if item:
             item.count += count
-            item.price += price
+            if item.count > total_count:
+                raise ValueError("Количество больше максимально допустимого")
             item.save()
         else:
             item = OrderItem.objects.create(
                 order=order,
                 article_number=article_number,
-                internal_id=internal_id,
                 manufacture=manufacture,
                 name=name,
                 provider=provider,
-                delivery_dt=delivery_dt,
+                delivery_time=delivery_time,
                 warehouse=warehouse,
-                purchase_price=purchase_price,
+                warehouse_code=warehouse_code,
+                total_count=total_count,
                 count=count,
                 multiplicity=multiplicity,
                 discount=discount,
-                price=price,
+                purchase_price=purchase_price,
                 status=status
             )
 
@@ -429,8 +437,6 @@ class OrderItemAdd(ManagerMixin, OrderIsMine, View):
 
 
 class OrderItemBulkRemove(ManagerMixin, OrderIsMine, View):
-    STATUSES_ALLOWED_TO_REMOVE = (OrderItem.Statuses.DEFAULT, OrderItem.Statuses.REJECTED)
-
     def delete(self, request, pk):
         try:
             data = json.loads(request.body.decode('utf-8'))
@@ -446,9 +452,7 @@ class OrderItemBulkRemove(ManagerMixin, OrderIsMine, View):
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid item id."}, status=400)
 
-        deleted_count, _ = OrderItem.objects.filter(order=self.order,
-                                                    id__in=item_ids,
-                                                    status__in=self.STATUSES_ALLOWED_TO_REMOVE).delete()
+        deleted_count, _ = OrderItem.objects.filter(order=self.order, id__in=item_ids).delete()
 
         return JsonResponse({"success": True, "deleted": deleted_count})
 
@@ -467,22 +471,22 @@ class OrderItemUpdateCount(ManagerMixin, OrderIsMine, View):
                 return JsonResponse({"error": f"Количество должно быть не меньше 1"}, status=400)
             elif count % item.multiplicity != 0:
                 return JsonResponse({"error": f"Количество должно быть кратно {item.multiplicity}"}, status=400)
+            elif count > item.total_count:
+                return JsonResponse({"error": "Количество больше максимально допустимого"}, status=400)
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         except (TypeError, ValueError):
             return JsonResponse({"error": "Invalid count value."}, status=400)
 
-        item.price = calc_final_price(item.purchase_price, count, item.discount, 30)
         item.count = count
-
-        item.save(update_fields=["count", "price"])
+        item.save(update_fields=["count"])
 
         return JsonResponse({
             "success": True,
             "item": {
                 "id": item.id,
                 "count": item.count,
-                "price": str(item.price),
+                "total_price": str(item.total_price),
             },
         })
 
@@ -512,7 +516,7 @@ class OrderItemsAgreementConfirmView(ManagerMixin, OrderIsMine, View):
             messages.error(request, 'Выбранные позиции не найдены в заказе')
             return redirect(reverse('orders:detail', kwargs={'pk': pk}))
 
-        total_cost = sum((item.price for item in selected_items), Decimal('0'))
+        total_cost = sum((item.total_price for item in selected_items), Decimal('0'))
 
         return render(request, 'orders/order_agreement_confirm.html', {
             'order': self.order,
@@ -605,7 +609,7 @@ class OrderClientApproveView(generic.FormView):
             return render(request, "orders/errors/unexpected_status.html", {}, status=422)
 
         items = list(OrderItem.objects.filter(order=order, status__in=[OrderItem.Statuses.AGREEMENT, OrderItem.Statuses.APPROVED]))
-        total_cost = sum((item.price for item in items), Decimal('0'))
+        total_cost = sum((item.total_price for item in items), Decimal('0'))
         return render(request, "orders/order_client_approve_form.html", {
             'order': order,
             'items': items,
@@ -680,27 +684,92 @@ class OrderClientApproveView(generic.FormView):
 class OrderInvoiceView(ManagerMixin, OrderIsMine, View):
     def post(self, request, pk):
         invoice = request.POST.get('invoice_link', '').strip()
-        if not invoice:
+        if self.order.parent is None and not invoice:
             messages.error(request, "Не указан счет на оплату")
             return redirect(reverse('orders:detail', kwargs={'pk': pk}))
 
         try:
             with transaction.atomic():
                 order = Order.objects.select_for_update().get(pk=pk)
-                order.update_client_status(Order.ClientStatuses.WAIT_PAYMENT)
-                order.invoice_link = invoice
-                order.save()
-                ChatMessage.objects.create(
-                    client=order.client,
-                    manager=self.get_manager(),
-                    text=f'Заказ #{order.id} выставлен счет на оплату.'
-                )
-            broker.send_order_invoice_notification(order.client, order, invoice)
-            messages.info(request, "Счет на оплату отправлен клиенту")
+                if invoice:
+                    order.update_client_status(Order.ClientStatuses.WAIT_PAYMENT)
+                    order.invoice_link = invoice
+                    order.save()
+                    ChatMessage.objects.create(
+                        client=order.client,
+                        manager=self.get_manager(),
+                        text=f'Заказ #{order.id} выставлен счет на оплату.'
+                    )
+                else:
+                    order.update_client_status(Order.ClientStatuses.PAID, commit=True)
+            if invoice:
+                broker.send_order_invoice_notification(order.client, order, invoice)
+                messages.info(request, "Счет на оплату отправлен клиенту")
         except Exception as ex:
             messages.error(request, "Возникла непредвиденная ошибка. Обратитесь к администратору")
 
         return redirect(reverse('orders:detail', kwargs={'pk': pk}))
+
+
+class OrderCreateAdditionalView(ManagerMixin, OrderIsMine, View):
+    def post(self, request, pk):
+        parent_order = self.order
+        sub_order = Order.objects.create(
+            client=parent_order.client,
+            manager=parent_order.manager,
+            status=Order.Statuses.PROCESSING,
+            client_status=Order.ClientStatuses.ASSIGNED,
+            initial_requirements=parent_order.initial_requirements,
+            parent=parent_order
+        )
+        messages.info(request, message=f"Дополнительный заказ успешно создан.")
+        return redirect(reverse('orders:detail', kwargs={'pk': pk}))
+
+
+order_create_logger = logging.getLogger("OrderCreateView")
+
+
+class OrderCreateView(ManagerMixin, OrderIsMine, generic.UpdateView):
+    def post(self, request, *args, **kwargs):
+        if self.order.client_status != Order.ClientStatuses.PAID:
+            messages.error(request, "Оформление заказа заблокировано: некорректный статус")
+            return redirect(reverse('orders:detail', args=args, kwargs=kwargs))
+
+        approved_items = OrderItem.objects.filter(order=self.order, status=OrderItem.Statuses.APPROVED).all()
+        if len(approved_items) < 1:
+            messages.error(request, "Оформление заказа заблокировано: нет согласованных позиций")
+            return redirect(reverse('orders:detail', args=args, kwargs=kwargs))
+
+        armtek = settings.AUTO_PARTS_PROVIDERS["armtek"]["instance"]
+
+        try:
+            armtek.init()
+            result = armtek.create_order(approved_items)
+            with transaction.atomic():
+                for result_item in result.items:
+                    for approved_item in approved_items:
+                        if approved_item.equals_by_params(result_item['article_number'],
+                                                            result_item['manufacture'],
+                                                            result_item['warehouse_code']):
+                            if result_item['error']:
+                                approved_item.status = OrderItem.Statuses.ORDER_FAILED
+                            elif result_item['remain'] > 0:
+                                approved_item.status = OrderItem.Statuses.HALF_ORDERED
+                            else:
+                                approved_item.status = OrderItem.Statuses.ORDERED
+                order = Order.objects.select_for_update().get(pk=kwargs['pk'])
+                order.update_client_status(Order.ClientStatuses.WAIT_SEND, commit=True)
+                OrderItem.objects.bulk_update(approved_items, ['status'])
+                ArmTekOrder.objects.create(
+                    order=order,
+                    creation_api_response=result.response_payload
+                )
+            messages.info(request, "Заказ(ы) успешно созданы")
+        except ProviderApiError as ex:
+            order_create_logger.error(f"Provider error for order: {ex}")
+            messages.error(request, "Заказ не создался. Подробности в логах")
+
+        return redirect(reverse('orders:detail', args=args, kwargs=kwargs))
 
 
 class OrderNextStatus(ManagerMixin, OrderIsMine, View):

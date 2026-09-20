@@ -59,7 +59,12 @@
                             </div>
                         {% endif %}
                     </div>
+                    {% if order.parent %}
+                    <div class="alert alert-warning">
+                        Это дополнительный заказ к <a href="{% url 'orders:detail' order.parent.id %}">основному заказу</a>
+                    </div>
                 </div>
+                {% endif %}
             </div>
             <div class="mb-4">
                 <button type="submit" class="btn btn-primary">Обновить</button>
@@ -73,19 +78,22 @@
                 <div class="mb-3">
                     <label for="invoiceLinkInput" class="form-label">Ссылка на оплату</label>
                     <input type="url" class="form-control" id="invoiceLinkInput" name="invoice_link"
-                           form="invoiceForm" placeholder="https://..." required>
+                           form="invoiceForm" placeholder="https://..." {% if not order.parent %}required{% endif %}>
                     <div class="invalid-feedback" id="invoiceLinkError">
                         Введите корректную ссылку (например, https://example.com).
                     </div>
                 </div>
-                <button type="submit" class="btn btn-success">Выставить счет</button>
+                <button type="submit" id="submitInvoiceBtn" class="btn btn-success">Выставить счет</button>
+                {% if order.parent %}
+                <button type="submit" id="skipInvoiceBtn" class="btn btn-success">Оплата не требуется</button>
+                {% endif %}
             </form>
             {% elif order.client_status == order.ClientStatuses.PAID %}
-            <form id="createOrderForm" method="post" action="{% url 'order:create_it' order.id %}">
+            <form id="createOrderForm" method="post" action="{% url 'orders:create' order.id %}">
                 {% csrf_token %}
-                <div class="alert alert-warn alert-dismissible fade show">
-                    На момент создания заказа, данные по позициям (цены, сроки поставки и пр.) могут отличаться от тех, что были перед началом согласования.
-                    Перед созданием заказов у поставщиков, рекомендуем проверить актуальность данных.
+                <div class="alert alert-warning alert-dismissible fade show">
+                    Данные по позициям (цены, сроки поставки и пр.) могут отличаться от тех, что были перед началом согласования.<br>
+                    Перед оформлением заказов у поставщиков рекомендуем проверить актуальность данных.<br>
                     Если потребуется, проведите согласование с клиентом повторно.
                 </div>
                 <div class="alert alert-info alert-dismissible fade show">
@@ -100,6 +108,26 @@
             </form>
             {% endif %}
         </div>
+
+        <div class="mt-4 mb-4">
+            <form action="{% url 'orders:create_additional' order.id%}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success">Создать дополнительный заказ</button>
+            </form>
+            {% if additional_order_list %}
+            <div class="mt-2">
+                <h2>Дополнительные заказы</h2>
+                <div class="list-group">
+                    {% for sub_order in additional_order_list %}
+                    <a href="{% url 'orders:detail' sub_order.id %}" class="list-group-item list-group-item-action">
+                        Дополнительный заказ №{{ sub_order.id }} от {{ sub_order.created|date:"d.m.Y" }}&#8209;{{ sub_order.get_client_status_display }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
         {% include "orders/blocks/_order_card.html" %}
 
         <!-- модальное окно подтверждения удаления выбранных позиций -->
