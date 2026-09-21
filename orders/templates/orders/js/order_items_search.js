@@ -8,7 +8,7 @@ const CART_ICON_URL   = "{% static 'images/shopping_cart.svg' %}";
 
 let currentItems = [];
 let currentManufacture = "";
-let sortField = null;
+let sortField = "manufacture";
 let sortDir = "asc";
 
 /* ── Helpers ── */
