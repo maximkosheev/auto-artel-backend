@@ -52,6 +52,17 @@ def get_order_next_client_status(client_status):
             return k
 
 
+def order_client_status_is_after(client_status, after):
+    after_id = ORDER_CLIENT_STATUSES[after]
+    client_status_id = ORDER_CLIENT_STATUSES[client_status]
+    return after_id < client_status_id
+
+def order_client_status_is_after_or_equal(client_status, after_or_equal):
+    after_id = ORDER_CLIENT_STATUSES[after_or_equal]
+    client_status_id = ORDER_CLIENT_STATUSES[client_status]
+    return after_id <= client_status_id
+
+
 def is_manager(user):
     return user.groups.filter(name='manager').exists()
 
@@ -547,6 +558,9 @@ class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
             return JsonResponse({"error": "Invalid item id."}, status=400)
 
         try:
+            if order_client_status_is_after_or_equal(self.order.client_status, Order.ClientStatuses.PAID):
+                raise BusinessError("Текущий статус заказа не позволяет отправить его на согласование")
+
             with transaction.atomic():
                 order = Order.objects.select_for_update().get(pk=pk)
 
@@ -723,7 +737,7 @@ class OrderCreateAdditionalView(ManagerMixin, OrderIsMine, View):
             parent=parent_order
         )
         messages.info(request, message=f"Дополнительный заказ успешно создан.")
-        return redirect(reverse('orders:detail', kwargs={'pk': pk}))
+        return redirect(reverse('orders:detail', kwargs={'pk': sub_order.id}))
 
 
 order_create_logger = logging.getLogger("OrderCreateView")
