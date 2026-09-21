@@ -28,9 +28,5 @@
             Этот заказ уже находится в работе у менеджера <strong>{{ order.manager }}</strong>.
             Вы не можете вносить изменения, пока заказ занят другим менеджером.
         </div>
-
-        <div class="mt-4">
-            <a href="{% url 'orders:list' %}" class="btn btn-secondary">Назад к списку заказов</a>
-        </div>
     </div>
 {% endblock orders_extra_content %}
