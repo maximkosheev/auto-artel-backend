@@ -145,12 +145,18 @@ class ArmTekProvider(AutoPartsProvider):
             raise ProviderApiError('Ошибка запроса данных у поставщика')
 
     def __map_search_pin_item_to_search_result_item(self, search_pin_item):
+        def safe_float(value):
+            try:
+                return float(value)
+            except ValueError:
+                return None
+
         result = SearchResultItem()
         result.internal_art_id = search_pin_item.ARTID
         result.article_number = search_pin_item.PIN
         result.manufacture = search_pin_item.BRAND
         result.name = search_pin_item.NAME
-        result.purchase_price = search_pin_item.PRICE
+        result.purchase_price = safe_float(search_pin_item.PRICE)
         result.total_count = search_pin_item.RVALUE
         result.multiplicity = search_pin_item.RDPRF
         if search_pin_item.DLVDT:

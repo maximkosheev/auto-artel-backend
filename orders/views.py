@@ -295,6 +295,12 @@ class AssortmentSearchResult(ManagerMixin, View):
 
 class ItemsFullSearchResult(ManagerMixin, View):
     def post(self, request):
+        def safe_price(value):
+            if value:
+                return value + value * 0.3
+            else:
+                return None
+
         article_number = request.POST.get('article_number', '').strip()
         manufacture = request.POST.get('manufacture', '').strip()
 
@@ -315,6 +321,7 @@ class ItemsFullSearchResult(ManagerMixin, View):
                     "manufacture": item.manufacture,
                     "name": item.name,
                     "purchase_price": item.purchase_price,
+                    "price": safe_price(item.purchase_price),
                     "total_count": item.total_count,
                     "multiplicity": item.multiplicity,
                     "delivery_time": item.delivery_time.strftime("%Y-%m-%d %H:%M") if item.delivery_time else None,
