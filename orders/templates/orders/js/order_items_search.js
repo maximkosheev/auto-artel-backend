@@ -296,6 +296,7 @@ function handleSortHeaderClick(e) {
   applyManufacturerFilter();
 }
 
+document.getElementById("sortByManufacture").addEventListener("click", handleSortHeaderClick);
 document.getElementById("sortByPrice").addEventListener("click", handleSortHeaderClick);
 document.getElementById("sortByDelivery").addEventListener("click", handleSortHeaderClick);
 
