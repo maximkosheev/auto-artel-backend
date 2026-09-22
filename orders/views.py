@@ -53,13 +53,14 @@ def get_order_next_client_status(client_status):
 
 
 def order_client_status_is_after(client_status, after):
-    after_id = ORDER_CLIENT_STATUSES[after]
-    client_status_id = ORDER_CLIENT_STATUSES[client_status]
+    after_id = ORDER_CLIENT_STATUSES[after]["index"]
+    client_status_id = ORDER_CLIENT_STATUSES[client_status]["index"]
     return after_id < client_status_id
 
+
 def order_client_status_is_after_or_equal(client_status, after_or_equal):
-    after_id = ORDER_CLIENT_STATUSES[after_or_equal]
-    client_status_id = ORDER_CLIENT_STATUSES[client_status]
+    after_id = ORDER_CLIENT_STATUSES[after_or_equal]["index"]
+    client_status_id = ORDER_CLIENT_STATUSES[client_status]["index"]
     return after_id <= client_status_id
 
 

@@ -338,6 +338,7 @@ function appendResultRow(tbody, item) {
     <td>${escHtml(item.manufacture)}</td>
     <td>${escHtml(item.name)}</td>
     <td class="text-end text-nowrap">${formatPrice(item.purchase_price)}</td>
+    <td>${formatPrice(item.purchase_price + item.purchase_price * 0.3)}</td>
     <td class="text-center">
       <span class="badge ${total_count > 5 ? 'bg-success' : total_count > 0 ? 'bg-warning text-dark' : 'bg-danger'}">
         ${total_count}
