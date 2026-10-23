@@ -53,7 +53,7 @@ class Manager(models.Model):
 
 class Order(models.Model):
     class Statuses(models.TextChoices):
-        NEW = 'NEW', 'Новый'
+        NEW = ('NEW', 'Новый')
         CANCELED = ('CANCELLED', 'Отменен')
         PROCESSING = ('PROCESSING', 'В работе')
         COMPLETED = ('COMPLETED', 'Завершен')
@@ -63,6 +63,7 @@ class Order(models.Model):
         NOT_ASSIGNED = ('NOT_ASSIGNED', 'Новый')
         ASSIGNED = ('ASSIGNED', 'В работе')
         WAIT_APPROVAL = ('WAIT_APPROVAL', 'На согласовании')
+        NOT_APPROVED = ('NOT_APPROVED', 'Не согласован')
         APPROVED = ('APPROVED', 'Согласован')
         WAIT_PAYMENT = ('WAIT_PAYMENT', 'Ждет оплаты')
         PAID = ('PAID', 'Оплачен')
@@ -71,6 +72,9 @@ class Order(models.Model):
         READY = ('READY', 'Ждет выдачи в ПВЗ')
         FINISHED = ('FINISHED', 'Завершен')
     id = models.BigAutoField(primary_key=True)
+    h_id = models.CharField(null=True, help_text='Иерархический идентификатор заказа')
+    root_id = models.BigIntegerField(null=True, db_index=True,
+                                     help_text='Идентификатор корневого заказа дерева (для себя самого — собственный id)')
     status = models.CharField(choices=Statuses, default=Statuses.NEW)
     client_status = models.CharField(null=True, choices=ClientStatuses, default=ClientStatuses.NOT_ASSIGNED)
     client = models.ForeignKey(Client, on_delete=models.PROTECT)
@@ -80,6 +84,8 @@ class Order(models.Model):
     initial_requirements = models.TextField()
     invoice_link = models.CharField(null=True, help_text='Ссылка на оплату')
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, related_name='additional_order_list')
+    child_next_id = models.BigIntegerField(default=1, help_text='Следующий порядковый номер дочернего заказа')
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -89,7 +95,12 @@ class Order(models.Model):
         return f'Заказ #{self.id} ({self.status})'
 
     def save(self, *args, **kwargs):
+        is_new_root = self.pk is None and self.parent_id is None
         super().save(*args, **kwargs)
+        if is_new_root and (self.h_id is None or self.root_id is None):
+            self.h_id = self.h_id or str(self.id)
+            self.root_id = self.id
+            super().save(update_fields=['h_id', 'root_id'])
         self.client_status_changed = False
 
     @property

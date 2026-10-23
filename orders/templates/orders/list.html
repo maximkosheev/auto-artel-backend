@@ -62,7 +62,7 @@
             <table class="order-table">
                 <thead>
                     <tr>
-                        <th class="sortable" data-sort-field="id">Номер <span class="sort-indicator" data-sort-indicator="id"></span></th>
+                        <th>Номер</th>
                         <th>Клиент</th>
                         <th>Менеджер</th>
                         <th class="sortable" data-sort-field="created">Дата создания <span class="sort-indicator" data-sort-indicator="created"></span></th>
@@ -72,8 +72,11 @@
                 </thead>
                 <tbody>
                     {% for order in orders %}
-                    <tr class="order-row status-{{ order.status|lower }}">
-                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.id }}</a></td>
+                    <tr class="order-row status-{{ order.status|lower }}" data-order-id="{{ order.id }}" data-depth="0">
+                        <td class="order-number-cell">
+                            <span class="tree-toggle{% if not order.has_children %} tree-toggle-empty{% endif %}" data-order-id="{{ order.id }}"></span>
+                            <a href="{% url 'orders:detail' order.id %}" target="_blank" class="order-number-link">{{ order.h_id }}</a>
+                        </td>
                         <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.client.name }}</a></td>
                         <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.manager.name }}</a></td>
                         <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.created|date:"M d, Y H:i" }}</a></td>
@@ -139,6 +142,7 @@
 <script>
     let currentOrderId = null;
     let notificationTimeout = null;
+    const orderChildrenUrlTemplate = "{% url 'orders:children' 999999999 %}";
 
     // Show notification popup
     function showNotification(orderData) {
@@ -237,9 +241,139 @@
         initSorting();
         initOrdersFilters();
         initPagination();
+        initOrderTree();
     });
 
-    /* ---- Sorting (order.id / order.created) ---- */
+    /* ---- Hierarchy tree (expand/collapse additional orders) ---- */
+    function initOrderTree() {
+        const tbody = document.querySelector('.order-table tbody');
+        if (!tbody) {
+            return;
+        }
+        tbody.addEventListener('click', function(event) {
+            const toggle = event.target.closest('.tree-toggle');
+            if (!toggle || toggle.classList.contains('tree-toggle-empty') || toggle.classList.contains('loading')) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            toggleOrderRow(toggle);
+        });
+    }
+
+    function removeChildRows(orderId) {
+        document.querySelectorAll('tr[data-parent-id="' + orderId + '"]').forEach(function(row) {
+            removeChildRows(row.dataset.orderId);
+            row.remove();
+        });
+    }
+
+    function toggleOrderRow(toggle) {
+        const orderId = toggle.dataset.orderId;
+        const row = toggle.closest('tr');
+
+        if (toggle.classList.contains('expanded')) {
+            removeChildRows(orderId);
+            toggle.classList.remove('expanded');
+            return;
+        }
+
+        toggle.classList.add('loading');
+        const params = getCurrentParams();
+        const dir = params.get('sort') === 'created' ? (params.get('dir') || 'asc') : 'asc';
+
+        // Пробрасываем активные фильтры страницы списка в запрос детей,
+        // чтобы ветки, не ведущие к совпадению, не отображались при раскрытии узла.
+        const childParams = new URLSearchParams();
+        childParams.set('dir', dir);
+        params.getAll('client').forEach(function(v) { childParams.append('client', v); });
+        params.getAll('client_status').forEach(function(v) { childParams.append('client_status', v); });
+        if (params.get('mine') === '1') {
+            childParams.set('mine', '1');
+        }
+
+        const url = orderChildrenUrlTemplate.replace('999999999', orderId) + '?' + childParams.toString();
+
+        fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Request failed');
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                const depth = parseInt(row.dataset.depth || '0', 10) + 1;
+                let insertAfter = row;
+                data.orders.forEach(function(child) {
+                    const childRow = buildChildRow(child, depth, orderId);
+                    insertAfter.insertAdjacentElement('afterend', childRow);
+                    insertAfter = childRow;
+                });
+                toggle.classList.remove('loading');
+                toggle.classList.add('expanded');
+            })
+            .catch(function() {
+                toggle.classList.remove('loading');
+            });
+    }
+
+    function createCellLink(detailUrl, text) {
+        const td = document.createElement('td');
+        const a = document.createElement('a');
+        a.href = detailUrl;
+        a.target = '_blank';
+        a.className = 'd-block text-decoration-none text-dark p-3';
+        a.textContent = text;
+        td.appendChild(a);
+        return td;
+    }
+
+    function buildChildRow(order, depth, parentId) {
+        const tr = document.createElement('tr');
+        tr.className = 'order-row status-' + order.status_lower;
+        tr.dataset.orderId = order.id;
+        tr.dataset.parentId = parentId;
+        tr.dataset.depth = depth;
+
+        const numberTd = document.createElement('td');
+        numberTd.className = 'order-number-cell';
+
+        const toggle = document.createElement('span');
+        toggle.className = 'tree-toggle' + (order.has_children ? '' : ' tree-toggle-empty');
+        toggle.dataset.orderId = order.id;
+        toggle.style.marginLeft = (depth * 20) + 'px';
+        numberTd.appendChild(toggle);
+
+        const numberLink = document.createElement('a');
+        numberLink.href = order.detail_url;
+        numberLink.target = '_blank';
+        numberLink.className = 'order-number-link';
+        numberLink.textContent = order.h_id;
+        numberTd.appendChild(numberLink);
+
+        tr.appendChild(numberTd);
+        tr.appendChild(createCellLink(order.detail_url, order.client_name));
+        tr.appendChild(createCellLink(order.detail_url, order.manager_name));
+        tr.appendChild(createCellLink(order.detail_url, order.created));
+
+        const statusTd = document.createElement('td');
+        const statusLink = document.createElement('a');
+        statusLink.href = order.detail_url;
+        statusLink.target = '_blank';
+        statusLink.className = 'd-block text-decoration-none text-dark p-3';
+        const badge = document.createElement('span');
+        badge.className = 'status-badge status-' + order.status_lower;
+        badge.textContent = order.status_label;
+        statusLink.appendChild(badge);
+        statusTd.appendChild(statusLink);
+        tr.appendChild(statusTd);
+
+        tr.appendChild(createCellLink(order.detail_url, order.initial_requirements));
+
+        return tr;
+    }
+
+    /* ---- Sorting (order.created) ---- */
     function getCurrentParams() {
         return new URLSearchParams(window.location.search);
     }

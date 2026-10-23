@@ -24,7 +24,7 @@
 
 {% block orders_extra_content %}
     <div class="mt-4">
-        <h2>Корзина заказа №{{ order.id }}</h2>
+        <h2>Корзина заказа № {{ order.h_id }}</h2>
 
         {% if messages %}
             {% for message in messages %}
@@ -119,7 +119,7 @@
                 <div class="list-group">
                     {% for sub_order in additional_order_list %}
                     <a href="{% url 'orders:detail' sub_order.id %}" class="list-group-item list-group-item-action">
-                        Дополнительный заказ №{{ sub_order.id }} от {{ sub_order.created|date:"d.m.Y" }}&#8209;{{ sub_order.get_client_status_display }}
+                        Дополнительный заказ № {{ sub_order.id }} от {{ sub_order.created|date:"d.m.Y" }}&#8209;{{ sub_order.get_client_status_display }}
                     </a>
                     {% endfor %}
                 </div>

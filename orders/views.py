@@ -7,9 +7,10 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
+from django.template.defaultfilters import date as date_filter, truncatechars
 from django.urls import reverse
 from django.views import generic, View
 from django.views.generic.edit import FormMixin
@@ -24,17 +25,18 @@ from .models import Order, Manager, OrderItem, Client, ArmTekOrder
 from .urls_helper import OrderLinkGenerator, InvalidOrderLinkToken
 
 ORDER_CLIENT_STATUSES = {
-    Order.ClientStatuses.CANCELED:          {'index': 0, 'can_move_next': False},
-    Order.ClientStatuses.NOT_ASSIGNED:      {'index': 1, 'can_move_next': False},
-    Order.ClientStatuses.ASSIGNED:          {'index': 2, 'can_move_next': False},
-    Order.ClientStatuses.WAIT_APPROVAL:     {'index': 3, 'can_move_next': False},
-    Order.ClientStatuses.APPROVED:          {'index': 4, 'can_move_next': False},
-    Order.ClientStatuses.WAIT_PAYMENT:      {'index': 5, 'can_move_next': True},
-    Order.ClientStatuses.PAID:              {'index': 6, 'can_move_next': False},
-    Order.ClientStatuses.WAIT_SEND:         {'index': 7, 'can_move_next': True},
-    Order.ClientStatuses.DELIVERY:          {'index': 8, 'can_move_next': True},
-    Order.ClientStatuses.READY:             {'index': 9, 'can_move_next': True},
-    Order.ClientStatuses.FINISHED:          {'index': 10, 'can_move_next': False},
+    Order.ClientStatuses.CANCELED:      {'index': 0, 'can_move_next': False},
+    Order.ClientStatuses.NOT_ASSIGNED:  {'index': 1, 'can_move_next': False},
+    Order.ClientStatuses.ASSIGNED:      {'index': 2, 'can_move_next': False},
+    Order.ClientStatuses.WAIT_APPROVAL: {'index': 3, 'can_move_next': False},
+    Order.ClientStatuses.NOT_APPROVED:  {'index': 4, 'can_move_next': False},
+    Order.ClientStatuses.APPROVED:      {'index': 5, 'can_move_next': False},
+    Order.ClientStatuses.WAIT_PAYMENT:  {'index': 6, 'can_move_next': True},
+    Order.ClientStatuses.PAID:          {'index': 7, 'can_move_next': False},
+    Order.ClientStatuses.WAIT_SEND:     {'index': 8, 'can_move_next': True},
+    Order.ClientStatuses.DELIVERY:      {'index': 9, 'can_move_next': True},
+    Order.ClientStatuses.READY:         {'index': 10, 'can_move_next': True},
+    Order.ClientStatuses.FINISHED:      {'index': 11, 'can_move_next': False},
 }
 
 
@@ -116,46 +118,71 @@ class OrderIsMine(OrderIsAvailableMixin):
         return self.order.manager and self.order.manager.user == request.user
 
 
+def build_order_node_filter(request, get_manager):
+    """
+    Собирает Q-объект активных фильтров (client, client_status, mine), которые должны
+    выполняться для ОДНОГО заказа (себя самого либо потомка), а не быть "размазаны"
+    по разным заказам одного дерева. Возвращает None, если ни один фильтр не задан.
+    """
+    where = Q()
+    active = False
+
+    try:
+        client_ids = {int(client_id) for client_id in request.GET.getlist('client')}
+    except (TypeError, ValueError):
+        client_ids = set()
+    if client_ids:
+        where &= Q(client_id__in=client_ids)
+        active = True
+
+    client_statuses = request.GET.getlist('client_status')
+    if client_statuses:
+        where &= Q(client_status__in=client_statuses)
+        active = True
+
+    if request.GET.get('mine') == '1':
+        where &= Q(manager=get_manager())
+        active = True
+
+    return where if active else None
+
+
 class OrderListView(ManagerMixin, generic.ListView):
     template_name = 'orders/list.html'
     model = Order
     context_object_name = 'orders'
 
     SORT_FIELDS = {
-        'id': 'id',
         'created': 'created',
     }
-    DEFAULT_SORT = ('-created', '-id')
+    DEFAULT_SORT = ('-created',)
     PAGE_SIZE_CHOICES = (20, 50, 100, 150, 200)
     DEFAULT_PAGE_SIZE = 20
 
     def get_queryset(self):
-        where = Q()
+        roots = Order.objects.filter(parent_id=None)
 
-        try:
-            client_ids = {int(client_id) for client_id in self.request.GET.getlist('client')}
-        except (TypeError, ValueError):
-            client_ids = set()
-        if client_ids:
-            where &= Q(client_id__in=client_ids)
+        node_filter = build_order_node_filter(self.request, self.get_manager)
+        if node_filter is not None:
+            # root_id — это id самого верхнего заказа дерева; у корневых заказов
+            # root_id указывает на себя самого, поэтому один Exists одновременно
+            # проверяет и сам корень, и всех его потомков на соответствие фильтру.
+            roots = roots.filter(Exists(Order.objects.filter(node_filter, root_id=OuterRef('id'))))
 
-        client_statuses = self.request.GET.getlist('client_status')
-        if client_statuses:
-            where &= Q(client_status__in=client_statuses)
-
-        if self.request.GET.get('mine') == '1':
-            where &= Q(manager=self.get_manager())
-
-        return Order.objects.filter(where).select_related('client', 'manager').order_by(*self.get_ordering())
+        return (roots
+                .select_related('client', 'manager')
+                .annotate(has_children=Exists(Order.objects.filter(parent_id=OuterRef('pk'))))
+                .order_by(*self.get_ordering()))
 
     def get_ordering(self):
         field = self.SORT_FIELDS.get(self.request.GET.get('sort'))
         if field is None:
             return self.DEFAULT_SORT
 
-        direction = self.request.GET.get('dir')
-        prefix = '-' if direction == 'desc' else ''
-        return f'{prefix}{field}', f'{prefix}id'
+        return (f'{self.get_sort_prefix()}{field}',)
+
+    def get_sort_prefix(self):
+        return '-' if self.request.GET.get('dir') == 'desc' else ''
 
     def get_paginate_by(self, queryset):
         try:
@@ -169,6 +196,45 @@ class OrderListView(ManagerMixin, generic.ListView):
         context['all_clients'] = Client.objects.all()
         context['client_status_choices'] = Order.ClientStatuses.choices
         return context
+
+
+class OrderChildrenView(ManagerMixin, View):
+    """
+    Непосредственные дети заказа. Если на странице списка активен фильтр
+    (client / client_status / mine), он применяется и здесь: ребёнок показывается,
+    если сам соответствует фильтру ИЛИ если у него есть собственные дети (ветка
+    может вести к совпадению глубже — узел раскрывается далее тем же способом).
+    """
+
+    def get(self, request, pk):
+        parent = get_object_or_404(Order, pk=pk)
+        prefix = '-' if request.GET.get('dir') == 'desc' else ''
+        children = (parent.additional_order_list
+                    .select_related('client', 'manager')
+                    .annotate(has_children=Exists(Order.objects.filter(parent_id=OuterRef('pk')))))
+
+        node_filter = build_order_node_filter(request, self.get_manager)
+        if node_filter is not None:
+            children = children.filter(Q(has_children=True) | node_filter)
+
+        children = children.order_by(f'{prefix}created', f'{prefix}id')
+
+        return JsonResponse({"orders": [self.serialize(order) for order in children]})
+
+    @staticmethod
+    def serialize(order):
+        return {
+            "id": order.id,
+            "h_id": order.h_id,
+            "detail_url": reverse('orders:detail', kwargs={'pk': order.id}),
+            "client_name": order.client.name,
+            "manager_name": order.manager.name if order.manager else "",
+            "created": date_filter(order.created, "M d, Y H:i"),
+            "status_lower": order.status.lower(),
+            "status_label": f"{order.get_status_display()}/{order.get_client_status_display()}",
+            "initial_requirements": truncatechars(order.initial_requirements, 50),
+            "has_children": order.has_children,
+        }
 
 
 class OrderDetailView(ManagerMixin, generic.UpdateView):
@@ -211,6 +277,7 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
         context = super().get_context_data(**kwargs)
         context['additional_order_list'] = self.object.additional_order_list.all
         context['page_title'] = f'Информация о заказе {self.object.client}'
+        context['order_items'] = self.get_order_items()
         # Проверяем, что заказ находится не на последнем шаге
         if has_next_order_client_status(self.object.client_status):
             # Начиная с определенного шага (в данном случае WAIT_PAYMENT), последовательность шагов имеет линейный
@@ -243,6 +310,20 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
     def form_invalid(self, form):
         messages.error(self.request, 'Пожалуйста, исправьте ошибки')
         return super().form_invalid(form)
+
+    def get_order_items(self):
+        if (self.object.client_status == Order.ClientStatuses.CANCELED
+                or self.object.client_status == Order.ClientStatuses.NOT_ASSIGNED
+                or self.object.client_status == Order.ClientStatuses.ASSIGNED
+                or self.object.client_status == Order.ClientStatuses.APPROVED
+                or self.object.client_status == Order.ClientStatuses.WAIT_PAYMENT
+                or self.object.client_status == Order.ClientStatuses.PAID):
+            return self.object.order_item_list.all()
+        else:
+            return self.object.order_item_list.filter(order=self.object,
+                                                      status__in=[OrderItem.Statuses.ORDERED,
+                                                                  OrderItem.Statuses.HALF_ORDERED,
+                                                                  OrderItem.Statuses.ORDER_FAILED]).all()
 
 
 class PartsSearchView(ManagerMixin, View):
@@ -573,15 +654,20 @@ class OrderItemBulkAgreement(ManagerMixin, OrderIsMine, View):
                 order = Order.objects.select_for_update().get(pk=pk)
 
                 # check if all early approved items are in current list for approve.
-                approved_item_ids = order.order_item_list.filter(status=OrderItem.Statuses.APPROVED).values_list('id', flat=True)
+                approved_item_ids = order.order_item_list.filter(status=OrderItem.Statuses.APPROVED).values_list('id',
+                                                                                                                 flat=True)
                 if not all(item_id in item_ids for item_id in approved_item_ids):
-                    raise BusinessError("В заказе есть позиции, которые клиент ранее согласовал, но они не включены в данный список. "
-                                        "Добавьте все согласованные ранее позиции и повторите попытку")
+                    raise BusinessError(
+                        "В заказе есть позиции, которые клиент ранее согласовал, но они не включены в данный список. "
+                        "Добавьте все согласованные ранее позиции и повторите попытку")
 
                 # Позициям, которые ранее не участвовали в согласовании (статус DEFAULT) или были отклонены (REJECTED),
                 # изменяем статус на AGREEMENT. На форме у клиента они будут unchecked
                 # Позициям, которые ранее уже были согласованы, ничего не меняем. На форме у клиента они будут checked.
-                updated_count = OrderItem.objects.filter(order=order, id__in=item_ids, status__in=[OrderItem.Statuses.DEFAULT, OrderItem.Statuses.REJECTED]).update(status=OrderItem.Statuses.AGREEMENT)
+                updated_count = OrderItem.objects.filter(order=order, id__in=item_ids,
+                                                         status__in=[OrderItem.Statuses.DEFAULT,
+                                                                     OrderItem.Statuses.REJECTED]).update(
+                    status=OrderItem.Statuses.AGREEMENT)
 
                 order.update_client_status(Order.ClientStatuses.WAIT_APPROVAL, commit=True)
                 ChatMessage.objects.create(
@@ -630,7 +716,8 @@ class OrderClientApproveView(generic.FormView):
         except UnexpectedStatusException as ex:
             return render(request, "orders/errors/unexpected_status.html", {}, status=422)
 
-        items = list(OrderItem.objects.filter(order=order, status__in=[OrderItem.Statuses.AGREEMENT, OrderItem.Statuses.APPROVED]))
+        items = list(OrderItem.objects.filter(order=order,
+                                              status__in=[OrderItem.Statuses.AGREEMENT, OrderItem.Statuses.APPROVED]))
         total_cost = sum((item.total_price for item in items), Decimal('0'))
         return render(request, "orders/order_client_approve_form.html", {
             'order': order,
@@ -683,8 +770,11 @@ class OrderClientApproveView(generic.FormView):
                 OrderItem.objects.filter(id__in=rejected_ids).update(status=OrderItem.Statuses.REJECTED)
 
             # If client have approved whole list, and order contains at least one APPROVED item - change Order status to the APPROVED
+            # Otherwise manager need to work more
             if len(rejected_ids) == 0 and order.order_item_list.filter(status=OrderItem.Statuses.APPROVED).exists():
                 order.update_client_status(Order.ClientStatuses.APPROVED, commit=True)
+            else:
+                order.update_client_status(Order.ClientStatuses.NOT_APPROVED, commit=True)
 
         if len(approved_ids) > 0 and len(rejected_ids) > 0:
             return render(request, "orders/partial_approved_by_client.html", context={}, status=200)
@@ -735,16 +825,26 @@ class OrderInvoiceView(ManagerMixin, OrderIsMine, View):
 
 class OrderCreateAdditionalView(ManagerMixin, OrderIsMine, View):
     def post(self, request, pk):
-        parent_order = self.order
-        sub_order = Order.objects.create(
-            client=parent_order.client,
-            manager=parent_order.manager,
-            status=Order.Statuses.PROCESSING,
-            client_status=Order.ClientStatuses.ASSIGNED,
-            initial_requirements=parent_order.initial_requirements,
-            parent=parent_order
-        )
-        messages.info(request, message=f"Дополнительный заказ успешно создан.")
+        try:
+            with transaction.atomic():
+                parent_order = Order.objects.select_for_update().get(pk=pk)
+                h_id = parent_order.h_id + '.' + str(parent_order.child_next_id)
+                sub_order = Order.objects.create(
+                    h_id=h_id,
+                    root_id=parent_order.root_id or parent_order.id,
+                    client=parent_order.client,
+                    manager=parent_order.manager,
+                    status=Order.Statuses.PROCESSING,
+                    client_status=Order.ClientStatuses.ASSIGNED,
+                    initial_requirements=parent_order.initial_requirements,
+                    parent=parent_order
+                )
+                parent_order.child_next_id += 1
+                parent_order.save(update_fields=['child_next_id'])
+                messages.info(request, message=f"Дополнительный заказ успешно создан.")
+        except Exception as ex:
+            messages.error(request, "Возникла не предвиденная ошибка. Обратитесь к администратору")
+
         return redirect(reverse('orders:detail', kwargs={'pk': sub_order.id}))
 
 
@@ -771,8 +871,8 @@ class OrderCreateView(ManagerMixin, OrderIsMine, generic.UpdateView):
                 for result_item in result.items:
                     for approved_item in approved_items:
                         if approved_item.equals_by_params(result_item['article_number'],
-                                                            result_item['manufacture'],
-                                                            result_item['warehouse_code']):
+                                                          result_item['manufacture'],
+                                                          result_item['warehouse_code']):
                             if result_item['error']:
                                 approved_item.status = OrderItem.Statuses.ORDER_FAILED
                             elif result_item['remain'] > 0:

@@ -1,3 +1,7 @@
+function urlToHRef(text) {
+    const exp = /(\b(https?):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+    return String(text).replace(exp, "<a href='$1' target='_blank'>$1</a>")
+}
 
 function createMessageElement(message) {
     const messageDiv = document.createElement('div');
@@ -23,7 +27,7 @@ function createMessageElement(message) {
 
     const textDiv = document.createElement('div');
     textDiv.className = 'message-text';
-    textDiv.textContent = message.text;
+    textDiv.innerHTML = urlToHRef(message.text);
     contentDiv.appendChild(textDiv);
 
     const timeDiv = document.createElement('div');

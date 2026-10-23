@@ -1,0 +1,47 @@
+{% load static %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <h5 class="mb-0">Позиции заказа</h5>
+        </div>
+    </div>
+    {% if order_items|length > 0 %}
+    <table class="table order-card-table">
+        <thead class="thead-dark">
+        <tr>
+            <th>Код</th>
+            <th>Производитель</th>
+            <th>Наименование</th>
+            <th>Поставщик</th>
+            <th>Кол-во</th>
+            <th>Цена закупки</th>
+            <th>Скидка</th>
+            <th>Надбавка</th>
+            <th>Цена продажи</th>
+            <th>Стоимость</th>
+            <th>Статус</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in order_items %}
+        <tr data-item-id="{{ item.id }}" data-status="{{ item.status }}">
+            <th scope="row">{{ item.article_number }}</th>
+            <td>{{ item.manufacture }}</td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.get_provider_display }}</td>
+            <td>{{ item.count }}</td>
+
+            <td>{{ item.purchase_price }}</td>
+            <td>{{ item.discount|floatformat:0 }}</td>
+            <td>{{ item.extra_price_display }}</td>
+            <td>{{ item.price }}</td>
+            <td data-item-total-price>{{ item.total_price }}</td>
+            <td><span class="order-item-status {{ item.status|lower }}">{{ item.get_status_display }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div>Пока нет ни одной позиции</div>
+    {% endif %}
+</div>
