@@ -70,8 +70,8 @@
                 <button type="submit" class="btn btn-primary">Обновить</button>
             </div>
         </form>
+        {% if order.client_status == order.ClientStatuses.APPROVED %}
         <div class="mt-4 mb-4">
-            {% if order.client_status == order.ClientStatuses.APPROVED %}
             <form id="invoiceForm" method="post" action="{% url 'orders:invoice' order.id %}">
                 {% csrf_token %}
                 <div class="mb-3">
@@ -87,7 +87,9 @@
                 <button type="submit" id="skipInvoiceBtn" class="btn btn-success">Оплата не требуется</button>
                 {% endif %}
             </form>
-            {% elif order.client_status == order.ClientStatuses.PAID %}
+        </div>
+        {% elif order.client_status == order.ClientStatuses.PAID %}
+        <div  class="mt-4 mb-4">
             <form id="createOrderForm" method="post" action="{% url 'orders:create' order.id %}">
                 {% csrf_token %}
                 <div class="alert alert-warning alert-dismissible fade show">
@@ -100,13 +102,15 @@
                 </div>
                 <button type="submit" class="btn btn-success">Оформить заказ</button>
             </form>
-            {% elif allow_next_status %}
+        </div>
+        {% elif allow_next_status %}
+        <div  class="mt-4 mb-4">
             <form method="post" action="{% url 'orders:next-status' order.id %}">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-success">{{ btn_next_status_title }}</button>
             </form>
-            {% endif %}
         </div>
+        {% endif %}
 
         <div class="mt-4 mb-4">
             <form action="{% url 'orders:create_additional' order.id%}" method="post">

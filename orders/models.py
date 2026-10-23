@@ -54,7 +54,7 @@ class Manager(models.Model):
 class Order(models.Model):
     class Statuses(models.TextChoices):
         NEW = ('NEW', 'Новый')
-        CANCELED = ('CANCELLED', 'Отменен')
+        CANCELED = ('CANCELLED', 'Завершен')
         PROCESSING = ('PROCESSING', 'В работе')
         COMPLETED = ('COMPLETED', 'Завершен')
 
@@ -67,10 +67,10 @@ class Order(models.Model):
         APPROVED = ('APPROVED', 'Согласован')
         WAIT_PAYMENT = ('WAIT_PAYMENT', 'Ждет оплаты')
         PAID = ('PAID', 'Оплачен')
-        WAIT_SEND = ('WAIT_SEND', 'Ждет отправки')
+        SENT_TO_SUPPLIERS = ('SENT_TO_SUPPLIERS', 'Отправлен поставщикам')
         DELIVERY = ('DELIVERY', 'Отправлен')
         READY = ('READY', 'Ждет выдачи в ПВЗ')
-        FINISHED = ('FINISHED', 'Завершен')
+        FINISHED = ('FINISHED', 'Выдан')
     id = models.BigAutoField(primary_key=True)
     h_id = models.CharField(null=True, help_text='Иерархический идентификатор заказа')
     root_id = models.BigIntegerField(null=True, db_index=True,
@@ -219,7 +219,6 @@ class OrderItem(models.Model):
         return (self.article_number == article
                 and self.manufacture == manufacture
                 and self.warehouse_code == warehouse_code)
-
 
 
 class ArmTekOrder(models.Model):

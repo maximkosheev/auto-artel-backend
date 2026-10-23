@@ -25,18 +25,18 @@ from .models import Order, Manager, OrderItem, Client, ArmTekOrder
 from .urls_helper import OrderLinkGenerator, InvalidOrderLinkToken
 
 ORDER_CLIENT_STATUSES = {
-    Order.ClientStatuses.CANCELED:      {'index': 0, 'can_move_next': False},
-    Order.ClientStatuses.NOT_ASSIGNED:  {'index': 1, 'can_move_next': False},
-    Order.ClientStatuses.ASSIGNED:      {'index': 2, 'can_move_next': False},
-    Order.ClientStatuses.WAIT_APPROVAL: {'index': 3, 'can_move_next': False},
-    Order.ClientStatuses.NOT_APPROVED:  {'index': 4, 'can_move_next': False},
-    Order.ClientStatuses.APPROVED:      {'index': 5, 'can_move_next': False},
-    Order.ClientStatuses.WAIT_PAYMENT:  {'index': 6, 'can_move_next': True},
-    Order.ClientStatuses.PAID:          {'index': 7, 'can_move_next': False},
-    Order.ClientStatuses.WAIT_SEND:     {'index': 8, 'can_move_next': True},
-    Order.ClientStatuses.DELIVERY:      {'index': 9, 'can_move_next': True},
-    Order.ClientStatuses.READY:         {'index': 10, 'can_move_next': True},
-    Order.ClientStatuses.FINISHED:      {'index': 11, 'can_move_next': False},
+    Order.ClientStatuses.CANCELED:          {'index': 0, 'can_move_next': False},
+    Order.ClientStatuses.NOT_ASSIGNED:      {'index': 1, 'can_move_next': False},
+    Order.ClientStatuses.ASSIGNED:          {'index': 2, 'can_move_next': False},
+    Order.ClientStatuses.WAIT_APPROVAL:     {'index': 3, 'can_move_next': False},
+    Order.ClientStatuses.NOT_APPROVED:      {'index': 4, 'can_move_next': False},
+    Order.ClientStatuses.APPROVED:          {'index': 5, 'can_move_next': False},
+    Order.ClientStatuses.WAIT_PAYMENT:      {'index': 6, 'can_move_next': True},
+    Order.ClientStatuses.PAID:              {'index': 7, 'can_move_next': False},
+    Order.ClientStatuses.SENT_TO_SUPPLIERS: {'index': 8, 'can_move_next': True},
+    Order.ClientStatuses.DELIVERY:          {'index': 9, 'can_move_next': True},
+    Order.ClientStatuses.READY:             {'index': 10, 'can_move_next': True},
+    Order.ClientStatuses.FINISHED:          {'index': 11, 'can_move_next': False},
 }
 
 
@@ -315,6 +315,7 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
         if (self.object.client_status == Order.ClientStatuses.CANCELED
                 or self.object.client_status == Order.ClientStatuses.NOT_ASSIGNED
                 or self.object.client_status == Order.ClientStatuses.ASSIGNED
+                or self.object.client_status == Order.ClientStatuses.WAIT_APPROVAL
                 or self.object.client_status == Order.ClientStatuses.APPROVED
                 or self.object.client_status == Order.ClientStatuses.WAIT_PAYMENT
                 or self.object.client_status == Order.ClientStatuses.PAID):
@@ -880,7 +881,7 @@ class OrderCreateView(ManagerMixin, OrderIsMine, generic.UpdateView):
                             else:
                                 approved_item.status = OrderItem.Statuses.ORDERED
                 order = Order.objects.select_for_update().get(pk=kwargs['pk'])
-                order.update_client_status(Order.ClientStatuses.WAIT_SEND, commit=True)
+                order.update_client_status(Order.ClientStatuses.SENT_TO_SUPPLIERS, commit=True)
                 OrderItem.objects.bulk_update(approved_items, ['status'])
                 ArmTekOrder.objects.create(
                     order=order,
