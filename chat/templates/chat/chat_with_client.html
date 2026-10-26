@@ -108,7 +108,7 @@
             {% else %}
             reply_to: null,
             {% endif %}
-            text: '{{ message.text|escape }}',
+            text: '{{ message.text|escapejs }}',
             created: '{{ message.created|date:"d.m.Y" }} {{ message.created|time:"H:i" }}',
             edited: '{{ message.edited|date:"d.m.Y" }} {{ message.edited|time:"H:i" }}'.trim(),
             deleted: '{{ message.deleted|date:"d.m.Y" }} {{ message.deleted|time:"H:i" }}'.trim()

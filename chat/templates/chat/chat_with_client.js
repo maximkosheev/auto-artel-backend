@@ -1,6 +1,15 @@
 function urlToHRef(text) {
     const exp = /(\b(https?):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
-    return String(text).replace(exp, "<a href='$1' target='_blank'>$1</a>")
+    return escapeHtml(String(text)).replace(exp, "<a href='$1' target='_blank'>$1</a>")
+}
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function createMessageElement(message) {
