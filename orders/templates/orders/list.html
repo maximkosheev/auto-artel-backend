@@ -72,7 +72,7 @@
                 </thead>
                 <tbody>
                     {% for order in orders %}
-                    <tr class="order-row status-{{ order.status|lower }}" data-order-id="{{ order.id }}" data-depth="0">
+                    <tr class="order-row status-{{ order.status|lower }}-{{ order.client_status|lower }}" data-order-id="{{ order.id }}" data-depth="0">
                         <td class="order-number-cell">
                             <span class="tree-toggle{% if not order.has_children %} tree-toggle-empty{% endif %}" data-order-id="{{ order.id }}"></span>
                             <a href="{% url 'orders:detail' order.id %}" target="_blank" class="order-number-link">{{ order.h_id }}</a>
@@ -81,7 +81,7 @@
                         <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.manager.name }}</a></td>
                         <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.created|date:"M d, Y H:i" }}</a></td>
                         <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">
-                            <span class="status-badge status-{{ order.status|lower }}">
+                            <span class="status-badge status-{{ order.status|lower }}-{{ order.client_status|lower }}">
                                 {{ order.get_status_display }}/{{ order.get_client_status_display }}
                             </span>
                         </a></td>
@@ -330,7 +330,7 @@
 
     function buildChildRow(order, depth, parentId) {
         const tr = document.createElement('tr');
-        tr.className = 'order-row status-' + order.status_lower;
+        tr.className = 'order-row status-' + order.status_lower + '-' + order.client_status_lower;
         tr.dataset.orderId = order.id;
         tr.dataset.parentId = parentId;
         tr.dataset.depth = depth;
@@ -362,7 +362,7 @@
         statusLink.target = '_blank';
         statusLink.className = 'd-block text-decoration-none text-dark p-3';
         const badge = document.createElement('span');
-        badge.className = 'status-badge status-' + order.status_lower;
+        badge.className = 'status-badge status-' + order.status_lower + '-' + order.client_status_lower;
         badge.textContent = order.status_label;
         statusLink.appendChild(badge);
         statusTd.appendChild(statusLink);

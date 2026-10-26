@@ -25,7 +25,7 @@ from .models import Order, Manager, OrderItem, Client, ArmTekOrder
 from .urls_helper import OrderLinkGenerator, InvalidOrderLinkToken
 
 ORDER_CLIENT_STATUSES = {
-    Order.ClientStatuses.CANCELED:          {'index': 0, 'can_move_next': False},
+    Order.ClientStatuses.CANCELLED:         {'index': 0, 'can_move_next': False},
     Order.ClientStatuses.NOT_ASSIGNED:      {'index': 1, 'can_move_next': False},
     Order.ClientStatuses.ASSIGNED:          {'index': 2, 'can_move_next': False},
     Order.ClientStatuses.WAIT_APPROVAL:     {'index': 3, 'can_move_next': False},
@@ -231,6 +231,7 @@ class OrderChildrenView(ManagerMixin, View):
             "manager_name": order.manager.name if order.manager else "",
             "created": date_filter(order.created, "M d, Y H:i"),
             "status_lower": order.status.lower(),
+            "client_status_lower": order.client_status.lower(),
             "status_label": f"{order.get_status_display()}/{order.get_client_status_display()}",
             "initial_requirements": truncatechars(order.initial_requirements, 50),
             "has_children": order.has_children,
@@ -246,8 +247,8 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
     def get_template_names(self):
         if self.object.client_status == Order.ClientStatuses.FINISHED:
             return ['orders/order_finished_form.html']
-        elif self.object.client_status == Order.ClientStatuses.CANCELED:
-            return ['orders/order_canceled_form.html']
+        elif self.object.client_status == Order.ClientStatuses.CANCELLED:
+            return ['orders/order_cancelled_form.html']
         elif self.object.manager is None:
             return ['orders/order_new_form.html']
         elif self.order_is_not_available_to_me():
@@ -312,7 +313,7 @@ class OrderDetailView(ManagerMixin, generic.UpdateView):
         return super().form_invalid(form)
 
     def get_order_items(self):
-        if (self.object.client_status == Order.ClientStatuses.CANCELED
+        if (self.object.client_status == Order.ClientStatuses.CANCELLED
                 or self.object.client_status == Order.ClientStatuses.NOT_ASSIGNED
                 or self.object.client_status == Order.ClientStatuses.ASSIGNED
                 or self.object.client_status == Order.ClientStatuses.WAIT_APPROVAL

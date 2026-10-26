@@ -54,12 +54,12 @@ class Manager(models.Model):
 class Order(models.Model):
     class Statuses(models.TextChoices):
         NEW = ('NEW', 'Новый')
-        CANCELED = ('CANCELLED', 'Завершен')
+        CANCELLED = ('CANCELLED', 'Завершен')
         PROCESSING = ('PROCESSING', 'В работе')
         COMPLETED = ('COMPLETED', 'Завершен')
 
     class ClientStatuses(models.TextChoices):
-        CANCELED = ('CANCELED', 'Отменен')
+        CANCELLED = ('CANCELLED', 'Отменен')
         NOT_ASSIGNED = ('NOT_ASSIGNED', 'Новый')
         ASSIGNED = ('ASSIGNED', 'В работе')
         WAIT_APPROVAL = ('WAIT_APPROVAL', 'На согласовании')
@@ -120,8 +120,8 @@ class Order(models.Model):
         self.updated = timezone.now()
         if self.client_status == Order.ClientStatuses.FINISHED:
             self.status = Order.Statuses.COMPLETED
-        elif self.client_status == Order.ClientStatuses.CANCELED:
-            self.status = Order.Statuses.CANCELED
+        elif self.client_status == Order.ClientStatuses.CANCELLED:
+            self.status = Order.Statuses.CANCELLED
 
         if commit:
             self.save(update_fields=['status', 'client_status', 'updated'])
