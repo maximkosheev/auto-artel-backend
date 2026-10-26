@@ -26,7 +26,7 @@ function createMessageElement(message) {
     if (message.reply_to) {
         const quoteDiv = document.createElement('div');
         quoteDiv.className = 'message-reply-quote';
-        quoteDiv.textContent = message.reply_to.text;
+        quoteDiv.textContent = truncateText(message.reply_to.text, 30);
         quoteDiv.onclick = (e) => {
             e.stopPropagation();
             scrollToMessage(message.reply_to.id);
@@ -198,8 +198,8 @@ function showContextMenu(event, message) {
 
 function truncateText(text, maxLen) {
     if (!text) return '';
-    if (text.length < maxLen) return text;
-    return text.substring(0, maxLen) + '...';
+    if (text.length <= maxLen) return text;
+    return text.substring(0, maxLen - 1) + '…';
 }
 
 function isMessageEdited(message) {
