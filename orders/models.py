@@ -53,24 +53,28 @@ class Manager(models.Model):
 
 class Order(models.Model):
     class Statuses(models.TextChoices):
-        NEW = 'NEW', 'Новый'
-        CANCELED = ('CANCELLED', 'Отменен')
+        NEW = ('NEW', 'Новый')
+        CANCELLED = ('CANCELLED', 'Завершен')
         PROCESSING = ('PROCESSING', 'В работе')
         COMPLETED = ('COMPLETED', 'Завершен')
 
     class ClientStatuses(models.TextChoices):
-        CANCELED = ('CANCELED', 'Отменен')
+        CANCELLED = ('CANCELLED', 'Отменен')
         NOT_ASSIGNED = ('NOT_ASSIGNED', 'Новый')
         ASSIGNED = ('ASSIGNED', 'В работе')
         WAIT_APPROVAL = ('WAIT_APPROVAL', 'На согласовании')
+        NOT_APPROVED = ('NOT_APPROVED', 'Не согласован')
         APPROVED = ('APPROVED', 'Согласован')
         WAIT_PAYMENT = ('WAIT_PAYMENT', 'Ждет оплаты')
         PAID = ('PAID', 'Оплачен')
-        WAIT_SEND = ('WAIT_SEND', 'Ждет отправки')
+        SENT_TO_SUPPLIERS = ('SENT_TO_SUPPLIERS', 'Отправлен поставщикам')
         DELIVERY = ('DELIVERY', 'Отправлен')
         READY = ('READY', 'Ждет выдачи в ПВЗ')
-        FINISHED = ('FINISHED', 'Завершен')
+        FINISHED = ('FINISHED', 'Выдан')
     id = models.BigAutoField(primary_key=True)
+    h_id = models.CharField(null=True, help_text='Иерархический идентификатор заказа')
+    root_id = models.BigIntegerField(null=True, db_index=True,
+                                     help_text='Идентификатор корневого заказа дерева (для себя самого — собственный id)')
     status = models.CharField(choices=Statuses, default=Statuses.NEW)
     client_status = models.CharField(null=True, choices=ClientStatuses, default=ClientStatuses.NOT_ASSIGNED)
     client = models.ForeignKey(Client, on_delete=models.PROTECT)
@@ -80,6 +84,8 @@ class Order(models.Model):
     initial_requirements = models.TextField()
     invoice_link = models.CharField(null=True, help_text='Ссылка на оплату')
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, related_name='additional_order_list')
+    child_next_id = models.BigIntegerField(default=1, help_text='Следующий порядковый номер дочернего заказа')
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -89,7 +95,12 @@ class Order(models.Model):
         return f'Заказ #{self.id} ({self.status})'
 
     def save(self, *args, **kwargs):
+        is_new_root = self.pk is None and self.parent_id is None
         super().save(*args, **kwargs)
+        if is_new_root and (self.h_id is None or self.root_id is None):
+            self.h_id = self.h_id or str(self.id)
+            self.root_id = self.id
+            super().save(update_fields=['h_id', 'root_id'])
         self.client_status_changed = False
 
     @property
@@ -109,8 +120,8 @@ class Order(models.Model):
         self.updated = timezone.now()
         if self.client_status == Order.ClientStatuses.FINISHED:
             self.status = Order.Statuses.COMPLETED
-        elif self.client_status == Order.ClientStatuses.CANCELED:
-            self.status = Order.Statuses.CANCELED
+        elif self.client_status == Order.ClientStatuses.CANCELLED:
+            self.status = Order.Statuses.CANCELLED
 
         if commit:
             self.save(update_fields=['status', 'client_status', 'updated'])
@@ -208,7 +219,6 @@ class OrderItem(models.Model):
         return (self.article_number == article
                 and self.manufacture == manufacture
                 and self.warehouse_code == warehouse_code)
-
 
 
 class ArmTekOrder(models.Model):

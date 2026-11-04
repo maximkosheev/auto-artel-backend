@@ -19,7 +19,7 @@
         </button>
         {% endif %}
     </div>
-    {% if order.order_item_list.all|length > 0 %}
+    {% if order_items|length > 0 %}
     <table class="table order-card-table">
         <thead class="thead-dark">
         <tr>
@@ -41,7 +41,7 @@
         </tr>
         </thead>
         <tbody>
-        {% for item in order.order_item_list.all %}
+        {% for item in order_items %}
         <tr data-item-id="{{ item.id }}" data-status="{{ item.status }}">
             <td>
                 <input type="checkbox" class="form-check-input item-select-checkbox" data-item-id="{{ item.id }}" data-item-status="{{ item.status }}">

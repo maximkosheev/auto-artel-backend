@@ -199,6 +199,7 @@ class ArmTekProvider(AutoPartsProvider):
         payload = {
             'VKORG': self.vkorg,
             'KUNRG': self.buyer,
+            'DBTYP': 3,
             'ITEMS': list(map(lambda o: {
                 'PIN': o.article_number,
                 'BRAND': o.manufacture,

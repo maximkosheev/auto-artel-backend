@@ -1,3 +1,16 @@
+function urlToHRef(text) {
+    const exp = /(\b(https?):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+    return escapeHtml(String(text)).replace(exp, "<a href='$1' target='_blank'>$1</a>")
+}
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 function createMessageElement(message) {
     const messageDiv = document.createElement('div');
@@ -13,7 +26,7 @@ function createMessageElement(message) {
     if (message.reply_to) {
         const quoteDiv = document.createElement('div');
         quoteDiv.className = 'message-reply-quote';
-        quoteDiv.textContent = message.reply_to.text;
+        quoteDiv.textContent = truncateText(message.reply_to.text, 30);
         quoteDiv.onclick = (e) => {
             e.stopPropagation();
             scrollToMessage(message.reply_to.id);
@@ -23,7 +36,7 @@ function createMessageElement(message) {
 
     const textDiv = document.createElement('div');
     textDiv.className = 'message-text';
-    textDiv.textContent = message.text;
+    textDiv.innerHTML = urlToHRef(message.text);
     contentDiv.appendChild(textDiv);
 
     const timeDiv = document.createElement('div');
@@ -185,8 +198,8 @@ function showContextMenu(event, message) {
 
 function truncateText(text, maxLen) {
     if (!text) return '';
-    if (text.length < maxLen) return text;
-    return text.substring(0, maxLen) + '...';
+    if (text.length <= maxLen) return text;
+    return text.substring(0, maxLen - 1) + '…';
 }
 
 function isMessageEdited(message) {

@@ -1,8 +1,14 @@
 {% extends 'orders/base.html' %}
 
+{% block orders_extra_style %}
+<style>
+    {% include 'orders/css/order_card.css' %}
+</style>
+{% endblock orders_extra_style %}
+
 {% block orders_extra_content %}
     <div class="mt-4">
-        <h2>Заказ № {{ order.id }}</h2>
+        <h2>Заказ № {{ order.h_id }}</h2>
 
         <div class="card">
             <div class="card-header">
@@ -35,5 +41,7 @@
         <div class="alert alert-success mt-4">
             Заказ завершен, дальнейшие операции по нему не возможны.
         </div>
+
+        {% include "orders/blocks/_order_static_card.html" %}
     </div>
 {% endblock orders_extra_content %}
