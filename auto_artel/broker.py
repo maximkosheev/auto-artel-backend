@@ -9,6 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 class Broker:
+    CHAT_QUEUE_NAME = 'chat_messages'
+    NOTIFICATION_QUEUE_NAME = 'automatic_notifications'
+
     def __init__(self):
         self.connection_properties = URLParameters(settings.BROKER['URI'])
         self.message_properties = BasicProperties(
@@ -37,10 +40,14 @@ class Broker:
         self._connection.close()
 
     def _configure(self):
-        self._channel.queue_declare('chat_messages', durable=True)
+        self._channel.queue_declare(self.CHAT_QUEUE_NAME, durable=True)
+        self._channel.queue_declare(self.NOTIFICATION_QUEUE_NAME, durable=True)
 
     def send_chat_message(self, message):
-        self._publish('chat_messages', message)
+        self._publish(self.CHAT_QUEUE_NAME, message)
+
+    def send_notification_message(self, message):
+        self._publish(self.NOTIFICATION_QUEUE_NAME, message)
 
     def _publish(self, queue_name, message):
         try:
@@ -54,6 +61,46 @@ class Broker:
             logger.error("Failed to send message to broker due error", ex)
         finally:
             self.close()
+
+    def send_order_change_status(self, client, order):
+        self.send_notification_message({
+            'to': client.id,
+            'to_telegram_id': client.telegram_id,
+            'type': 'TEXT',
+            'data': {
+                "text": f"Статус вашего заказа #{order.id} от {order.created_date_formatted()} изменился. "
+                        f"Новый статус <b>{order.get_client_status_display()}</b>\n"
+            }
+        })
+
+    def send_order_agreement_notification(self, client, order, agreement_link, due_to):
+        due_to_str = due_to.strftime("%d/%m/%Y, %H:%M:%S")
+        self.send_notification_message({
+            'to': client.id,
+            'to_telegram_id': client.telegram_id,
+            'type': 'ORDER_ACTION_REQUIRED',
+            'data': {
+                'text': f"Требуется согласие по вашему заказу #{order.id} от {order.created_date_formatted()}.\n"
+                        f"Для согласования перейдите по ссылке ниже. Ссылка действует до {due_to_str}Мск",
+                'details': {
+                    'link': agreement_link
+                }
+            }
+        })
+
+    def send_order_invoice_notification(self, client, order, invoice):
+        self.send_notification_message({
+            'to': client.id,
+            'to_telegram_id': client.telegram_id,
+            'type': 'ORDER_ACTION_REQUIRED',
+            'data': {
+                'text': f"Требуется оплата по вашему заказу #{order.id} от {order.created_date_formatted()}.\n"
+                        f"Для оплаты перейдите по ссылке ниже. Оплатить нужно в течении суток",
+                'details': {
+                    'link': invoice
+                }
+            }
+        })
 
 
 broker = Broker()

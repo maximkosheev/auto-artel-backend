@@ -1,0 +1,87 @@
+{% load static %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <h5 class="mb-0">Позиции заказа</h5>
+            <button type="button" id="removeSelectedBtn" class="btn btn-danger btn-sm d-none">
+                <img src="{% static 'images/trash_bin.svg' %}" width="16" height="16" alt="">
+                Удалить
+            </button>
+            <button type="button" id="agreementSelectedBtn" class="btn btn-primary btn-sm d-none">
+                <i class="bi bi-send"></i>
+                На согласование
+            </button>
+        </div>
+        {% if order.manager %}
+        <button type="button" class="btn btn-success btn-sm" id="add-item"
+                onclick="window.location.href='{% url 'orders:items_search' order.id %}'">
+            <i class="bi bi-plus"></i> Найти на складе
+        </button>
+        {% endif %}
+    </div>
+    {% if order_items|length > 0 %}
+    <table class="table order-card-table">
+        <thead class="thead-dark">
+        <tr>
+            <th></th>
+            <th>Код</th>
+            <th>Производитель</th>
+            <th>Наименование</th>
+            <th>Поставщик</th>
+            <th>Кол-во</th>
+            <th>Кол-во на складе</th>
+            <th>Цена закупки</th>
+            <th>Скидка</th>
+            <th>Надбавка</th>
+            <th>Цена продажи</th>
+            <th>Стоимость</th>
+            <th>Срок доставки</th>
+            <th>Склад</th>
+            <th>Статус</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in order_items %}
+        <tr data-item-id="{{ item.id }}" data-status="{{ item.status }}">
+            <td>
+                <input type="checkbox" class="form-check-input item-select-checkbox" data-item-id="{{ item.id }}" data-item-status="{{ item.status }}">
+            </td>
+            <th scope="row">{{ item.article_number }}</th>
+            <td>{{ item.manufacture }}</td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.get_provider_display }}</td>
+            <td>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex flex-column align-items-end gap-1">
+                        {% if item.multiplicity > 1 %}
+                        <span class="badge rounded-pill bg-primary lh-1" style="font-size:.65rem" title="Кратность">÷{{ item.multiplicity }}</span>
+                        {% endif %}
+                        <input type="number" inputmode="numeric" class="form-control form-control-sm count-input"
+                               style="width:5rem" min="{{ item.multiplicity }}" step="{{ item.multiplicity }}"
+                               value="{{ item.count }}" data-original-count="{{ item.count }}">
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary apply-count-btn d-none">
+                        <span class="apply-count-text">Применить</span>
+                        <span class="spinner-border spinner-border-sm d-none apply-count-spinner"></span>
+                    </button>
+                </div>
+                <div class="text-danger small count-error d-none"></div>
+            </td>
+            <td>{{ item.total_count }}</td>
+
+            <td>{{ item.purchase_price }}</td>
+            <td>{{ item.discount|floatformat:0 }}</td>
+            <td>{{ item.extra_price_display }}</td>
+            <td>{{ item.price }}</td>
+            <td data-item-total-price>{{ item.total_price }}</td>
+            <td>{{ item.delivery_date|date:"d.m.Y" }}</td>
+            <td>{{ item.warehouse }}</td>
+            <td><span class="order-item-status {{ item.status|lower }}">{{ item.get_status_display }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div>Пока нет ни одной позиции</div>
+    {% endif %}
+</div>

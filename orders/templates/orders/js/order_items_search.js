@@ -8,7 +8,7 @@ const CART_ICON_URL   = "{% static 'images/shopping_cart.svg' %}";
 
 let currentItems = [];
 let currentManufacture = "";
-let sortField = null;
+let sortField = "manufacture";
 let sortDir = "asc";
 
 /* ── Helpers ── */
@@ -296,6 +296,7 @@ function handleSortHeaderClick(e) {
   applyManufacturerFilter();
 }
 
+document.getElementById("sortByManufacture").addEventListener("click", handleSortHeaderClick);
 document.getElementById("sortByPrice").addEventListener("click", handleSortHeaderClick);
 document.getElementById("sortByDelivery").addEventListener("click", handleSortHeaderClick);
 
@@ -311,12 +312,18 @@ function appendGroupHeader(tbody, label, colSpan) {
 
 function appendResultRow(tbody, item) {
   const tr    = document.createElement("tr");
-  const count = parseInt(item.count) || 0;
+  const total_count = parseInt(item.total_count) || 0;
+  const multiplicity = parseInt(item.multiplicity) || 1
+  const multiplicityBadge = multiplicity > 1 ? `
+          <span class="badge rounded-pill bg-primary lh-1" style="font-size:.65rem" title="Кратность">÷${multiplicity}</span>` : "";
   const addCell = HAS_ORDER ? `
     <td class="text-center align-middle" data-add-cell>
       <div class="d-flex align-items-center gap-1 justify-content-center">
-        <input type="number" class="form-control form-control-sm qty-input"
-               min="1" value="1" style="width:4rem">
+        <div class="d-flex flex-column align-items-end gap-1">
+          ${multiplicityBadge}
+          <input type="number" class="form-control form-control-sm qty-input"
+                 min="${multiplicity}" max="${total_count}" value="${multiplicity}" step="${multiplicity}" style="width:4rem">
+        </div>
         <button
           class="btn btn-sm btn-primary add-to-order-btn"
           title="Добавить в заказ"
@@ -331,10 +338,11 @@ function appendResultRow(tbody, item) {
     <td><code>${escHtml(item.article_number)}</code></td>
     <td>${escHtml(item.manufacture)}</td>
     <td>${escHtml(item.name)}</td>
-    <td class="text-end text-nowrap">${formatPrice(item.price)}</td>
+    <td class="text-end text-nowrap">${formatPrice(item.purchase_price)}</td>
+    <td>${formatPrice(item.price)}</td>
     <td class="text-center">
-      <span class="badge ${count > 5 ? 'bg-success' : count > 0 ? 'bg-warning text-dark' : 'bg-danger'}">
-        ${count}
+      <span class="badge ${total_count > 5 ? 'bg-success' : total_count > 0 ? 'bg-warning text-dark' : 'bg-danger'}">
+        ${total_count}
       </span>
     </td>
     <td>${escHtml(item.delivery_time)}</td>
@@ -362,10 +370,17 @@ function appendResultRow(tbody, item) {
 
 /* ── Add to order ── */
 function renderAddCell(cell, item) {
+  const total_count = parseInt(item.total_count) || 0;
+  const multiplicity = parseInt(item.multiplicity) || 1
+  const multiplicityBadge = multiplicity > 1 ? `
+      <span class="badge rounded-pill bg-primary lh-1" style="font-size:.65rem" title="Кратность">÷${multiplicity}</span>` : "";
   cell.innerHTML = `
     <div class="d-flex align-items-center gap-1 justify-content-center">
-      <input type="number" class="form-control form-control-sm qty-input"
-             min="1" value="1" style="width:4rem">
+      <div class="d-flex flex-column align-items-end gap-1">
+        ${multiplicityBadge}
+        <input type="number" class="form-control form-control-sm qty-input"
+               min="${multiplicity}" max="${total_count}" value="${multiplicity}" step="${multiplicity}" style="width:4rem">
+      </div>
       <button
         class="btn btn-sm btn-primary add-to-order-btn"
         title="Добавить в заказ"

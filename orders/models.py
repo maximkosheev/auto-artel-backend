@@ -1,3 +1,7 @@
+import decimal
+import math
+
+from datetime import date, datetime, timedelta
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -23,6 +27,9 @@ class Client(models.Model):
     phone = models.CharField(unique=True, help_text='Телефон для связи')
     telegram_id = models.BigIntegerField(null=True, unique=True)
 
+    class Meta:
+        ordering = ["name", "-phone"]
+
     def __str__(self):
         return self.name
 
@@ -45,56 +52,175 @@ class Manager(models.Model):
 
 
 class Order(models.Model):
-    STATUS_CHOICES = [
-        ('NEW', 'Новый'),
-        ('CANCELLED', 'Отменен'),
-        ('PROCESSING', 'В работе'),
-        ('COMPLETED', 'Завершен')
-    ]
-    CLIENT_STATUS_CHOICES = [
-        ('NOT_ASSIGNED', 'Новый'),
-        ('ASSIGNED', 'Менеджер принял заказ в работу'),
-        ('WAIT_APPROVAL', 'На согласовании с клиентом'),
-        ('WAIT_PAYMENT', 'Ждет оплаты'),
-        ('PAID', 'Оплачен'),
-        ('WAIT_SEND', 'Ждет отправки у поставщиков'),
-        ('DELIVERY', 'Отправлен'),
-        ('READY', 'Ждет выдачи в ПВЗ'),
-        ('FINISHED', 'Завершен')
-    ]
+    class Statuses(models.TextChoices):
+        NEW = ('NEW', 'Новый')
+        CANCELLED = ('CANCELLED', 'Завершен')
+        PROCESSING = ('PROCESSING', 'В работе')
+        COMPLETED = ('COMPLETED', 'Завершен')
+
+    class ClientStatuses(models.TextChoices):
+        CANCELLED = ('CANCELLED', 'Отменен')
+        NOT_ASSIGNED = ('NOT_ASSIGNED', 'Новый')
+        ASSIGNED = ('ASSIGNED', 'В работе')
+        WAIT_APPROVAL = ('WAIT_APPROVAL', 'На согласовании')
+        NOT_APPROVED = ('NOT_APPROVED', 'Не согласован')
+        APPROVED = ('APPROVED', 'Согласован')
+        WAIT_PAYMENT = ('WAIT_PAYMENT', 'Ждет оплаты')
+        PAID = ('PAID', 'Оплачен')
+        SENT_TO_SUPPLIERS = ('SENT_TO_SUPPLIERS', 'Отправлен поставщикам')
+        DELIVERY = ('DELIVERY', 'Отправлен')
+        READY = ('READY', 'Ждет выдачи в ПВЗ')
+        FINISHED = ('FINISHED', 'Выдан')
     id = models.BigAutoField(primary_key=True)
-    status = models.CharField(choices=STATUS_CHOICES, default='NEW')
-    client_status = models.CharField(null=True, choices=CLIENT_STATUS_CHOICES, default='NOT_ASSIGNED')
+    h_id = models.CharField(null=True, help_text='Иерархический идентификатор заказа')
+    root_id = models.BigIntegerField(null=True, db_index=True,
+                                     help_text='Идентификатор корневого заказа дерева (для себя самого — собственный id)')
+    status = models.CharField(choices=Statuses, default=Statuses.NEW)
+    client_status = models.CharField(null=True, choices=ClientStatuses, default=ClientStatuses.NOT_ASSIGNED)
     client = models.ForeignKey(Client, on_delete=models.PROTECT)
     manager = models.ForeignKey(Manager, null=True, on_delete=models.PROTECT)
     created = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(default=timezone.now)
     initial_requirements = models.TextField()
+    invoice_link = models.CharField(null=True, help_text='Ссылка на оплату')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, related_name='additional_order_list')
+    child_next_id = models.BigIntegerField(default=1, help_text='Следующий порядковый номер дочернего заказа')
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.client_status_changed = False
 
     def __str__(self):
-        return f'Заказ #{self.id} ({self.get_status_display()})'
+        return f'Заказ #{self.id} ({self.status})'
+
+    def save(self, *args, **kwargs):
+        is_new_root = self.pk is None and self.parent_id is None
+        super().save(*args, **kwargs)
+        if is_new_root and (self.h_id is None or self.root_id is None):
+            self.h_id = self.h_id or str(self.id)
+            self.root_id = self.id
+            super().save(update_fields=['h_id', 'root_id'])
+        self.client_status_changed = False
+
+    @property
+    def created_date(self):
+        return self.created.date()
+
+    def update_status(self, status: Statuses, commit: bool = False):
+        self.status = status
+        self.updated = timezone.now()
+        if commit:
+            self.save(update_fields=['status', 'updated'])
+
+    def update_client_status(self, client_status: ClientStatuses, commit: bool = False):
+        if self.client_status != client_status:
+            self.client_status_changed = True
+        self.client_status = client_status
+        self.updated = timezone.now()
+        if self.client_status == Order.ClientStatuses.FINISHED:
+            self.status = Order.Statuses.COMPLETED
+        elif self.client_status == Order.ClientStatuses.CANCELLED:
+            self.status = Order.Statuses.CANCELLED
+
+        if commit:
+            self.save(update_fields=['status', 'client_status', 'updated'])
+
+    def created_date_formatted(self, template: str | None = None):
+        if self.created_date is not None:
+            if template is not None:
+                return self.created_date.strftime(template)
+            else:
+                return self.created_date.isoformat()
+        return None
 
 
 class OrderItem(models.Model):
+    class Statuses(models.TextChoices):
+        DEFAULT = 'DEFAULT', 'Не задан'
+        AGREEMENT = 'AGREEMENT', 'На согласовании'
+        APPROVED = 'APPROVED', 'Согласован клиентом'
+        REJECTED = 'REJECTED', 'Отклонён клиентом'
+
+        ORDERED = 'ORDERED', 'Заказан',
+        HALF_ORDERED = 'HALF_ORDERED', 'Заказан частично'
+        ORDER_FAILED = 'ORDER_FAILED', 'Ошибка заказа'
+
+    class Providers(models.TextChoices):
+        ARMTEK = ('ARMTEK', 'ARMTEK')
+
     id = models.BigAutoField(primary_key=True)
     article_number = models.CharField(null=False, default='Артикул отсутствует', help_text='Артикул')
     manufacture = models.CharField(null=False, default='Производитель отсутствует', help_text='Производитель')
     name = models.CharField(null=False, default="Наименование отсутствует", help_text='Наименование')
     count = models.IntegerField(null=False, default=1, help_text='Количество')
-    price = models.DecimalField(null=False, max_digits=19, decimal_places=2, default=0.0, help_text='Цена')
-    discount = models.DecimalField(null=False, max_digits=5, decimal_places=2, default=0.00,
-                                   help_text='Скидка. 0 - 100% оплаты; 0.1 - скидка 10%')
-
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_item_list')
-    confirmed = models.BooleanField(default=False, help_text='Признак, что данная позиция утверждена в заказе')
-
-    provider = models.CharField(null=True, help_text='Поставщик, например, ArmTek')
-    delivery_dt = models.DateTimeField(null=True, help_text='Дата поставки, заявленная поставщиком')
-    warehouse = models.CharField(null=True, help_text='Склад поставщика')
-    internal_id = models.CharField(null=True, help_text='Внутренний идентификатор запчасти у поставщика')
+    multiplicity = models.IntegerField(null=False, default=1, help_text='Кратность')
+    status = models.CharField(choices=Statuses, default=Statuses.DEFAULT)
     purchase_price = models.DecimalField(null=True, max_digits=19, decimal_places=2,
                                          help_text='Цена у поставщица (цена закупки)')
+    discount = models.DecimalField(null=False, max_digits=5, decimal_places=2, default=0.00,
+                                   help_text='Скидка. 0 - без скидки; 10 - скидка 10%; 100 - бесплатно')
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_item_list')
+
+    provider = models.CharField(null=True, choices=Providers, default=Providers.ARMTEK,
+                                help_text='Поставщик, например, ArmTek')
+
+    delivery_time = models.IntegerField(null=True, help_text='Кол-во дней на доставку')
+
+    warehouse_code = models.CharField(null=True, help_text='Код склада')
+    warehouse = models.CharField(null=True, help_text='Склад поставщика')
+
+    total_count = models.IntegerField(null=True, help_text='Общее кол-во у поставщика')
+
+    @property
+    def extra_price(self):
+        """
+        Надбавка
+        @return:
+        """
+        return decimal.Decimal("0.3")
+
+    @property
+    def extra_price_display(self):
+        return (self.extra_price * decimal.Decimal("100.0")).quantize(decimal.Decimal("1"))
+
+    @property
+    def price(self):
+        # скидка
+        discount = self.discount / decimal.Decimal("100.0")
+        if self.purchase_price:
+            purchase_price = self.purchase_price
+        else:
+            purchase_price = 1
+        # цена с учетом надбавки
+        extra_price = purchase_price + purchase_price * self.extra_price
+        # цена с учетом надбавки и скидки
+        final_price = extra_price - extra_price * discount
+        return final_price.quantize(decimal.Decimal("1.00"))
+
+    @property
+    def total_price(self):
+        fifty = decimal.Decimal("50.0")
+
+        return (math.ceil(self.price * self.count / fifty) * fifty).quantize(decimal.Decimal("1.00"))
+
+    @property
+    def delivery_date(self):
+        if self.delivery_time:
+            return date.today() + timedelta(days=self.delivery_time)
+        else:
+            return None
+
+    def client_short_str(self):
+        return f"{self.name};{self.manufacture}; Кол-во:{self.count}; Цена:{self.price}"
+
+    def equals_by_params(self, article, manufacture, warehouse_code):
+        return (self.article_number == article
+                and self.manufacture == manufacture
+                and self.warehouse_code == warehouse_code)
 
 
-
-
+class ArmTekOrder(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='armtek_order_list')
+    creation_api_response = models.JSONField(null=True, help_text='Ответ API при создании заказа')

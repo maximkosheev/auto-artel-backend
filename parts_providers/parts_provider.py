@@ -1,3 +1,4 @@
+import json
 from abc import ABC, abstractmethod
 
 
@@ -25,6 +26,15 @@ class AutoPartsProvider(ABC):
         """
     pass
 
+    @abstractmethod
+    def create_order(self, order_items: list):
+        """
+        Создание заказа
+        @param order_items: позиции заказа
+        @return: json ответ API поставщика
+        """
+        return json.loads("{}")
+
 
 class SearchResultItem:
     def __init__(self):
@@ -32,10 +42,12 @@ class SearchResultItem:
         self.article_number = None
         self.manufacture = None
         self.name = None
-        self.price = None
-        self.count = None
+        self.purchase_price = None
+        self.total_count = None
         self.delivery_time = None
         self.warehouse_location = None
+        self.warehouse_code = None
+        self.multiplicity = 1
 
 
 class AssortmentSearchResultItem:
@@ -43,3 +55,14 @@ class AssortmentSearchResultItem:
         self.article_number = None
         self.manufacture = None
         self.name = None
+
+
+class CreateOrderResult:
+    SUCCESS = 'SUCCESS'
+    FAILED = 'FAILED'
+    HALF = 'HALF'
+
+    def __init__(self):
+        self.success = False
+        self.response_payload = {}
+        self.items = []

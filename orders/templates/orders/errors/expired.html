@@ -1,0 +1,16 @@
+{% extends "orders/errors/_base.html" %}
+
+{% block page-title %}{{ error_title|default:"Ссылка недействительна" }}{% endblock page-title %}
+
+{% block title_default %}Ссылка недействительна{% endblock title_default %}
+
+{% block message_default %}Не удалось открыть страницу заказа: ссылка повреждена, введена в неверном формате, срок её действия истёк, либо она уже была использована.{% endblock message_default %}
+
+{% block hint_default %}Пожалуйста, свяжитесь с вашим менеджером, чтобы получить новую ссылку.{% endblock hint_default %}
+
+{% block icon_theme %}error-icon--danger{% endblock icon_theme %}
+
+{% block icon_svg %}
+    <path d="M12 9v4m0 4h.01M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.82 21h16.36a2 2 0 0 0 1.71-2.96L13.71 3.86a2 2 0 0 0-3.42 0z"
+          stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+{% endblock icon_svg %}

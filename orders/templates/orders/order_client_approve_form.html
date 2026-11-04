@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Согласование заказа № {{ order.id }}</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            min-height: 100%;
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(160deg, #f7f8fa 0%, #eef0f3 100%);
+            color: #333;
+            padding: clamp(16px, 5vw, 24px);
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        .page {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: clamp(12px, 3vw, 16px);
+            box-shadow: 0 12px 32px rgba(20, 20, 30, 0.08);
+            padding: clamp(20px, 5vw, 32px);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: clamp(18px, 4.5vw, 20px);
+            font-weight: 600;
+            color: #222;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            font-size: clamp(13px, 3.4vw, 14px);
+            color: #8b909a;
+            margin-bottom: 24px;
+        }
+
+        dl.summary {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            row-gap: 10px;
+            column-gap: 12px;
+            font-size: clamp(13px, 3.4vw, 14px);
+        }
+
+        dl.summary dt {
+            color: #8b909a;
+        }
+
+        dl.summary dd {
+            color: #333;
+        }
+
+        .requirements {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eef0f3;
+            font-size: clamp(13px, 3.4vw, 14px);
+            line-height: 1.55;
+            color: #5a5f6a;
+            white-space: pre-wrap;
+        }
+
+        h2 {
+            font-size: clamp(15px, 3.8vw, 16px);
+            font-weight: 600;
+            color: #222;
+            margin-bottom: 16px;
+        }
+
+        .alert {
+            background: #fdecea;
+            color: #8a2c22;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .items-total {
+            font-size: clamp(13px, 3.4vw, 14px);
+            color: #5a5f6a;
+            margin-bottom: 16px;
+        }
+
+        .items-total strong {
+            color: #222;
+        }
+
+        .select-all-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 12px;
+            margin-bottom: 4px;
+            border-bottom: 1px solid #eef0f3;
+            font-size: clamp(13.5px, 3.5vw, 14px);
+            font-weight: 600;
+            color: #222;
+            cursor: pointer;
+        }
+
+        .item-list {
+            list-style: none;
+        }
+
+        .item-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 2px;
+            border-bottom: 1px solid #eef0f3;
+            cursor: pointer;
+        }
+
+        .item-row:last-child {
+            border-bottom: none;
+        }
+
+        .select-all-checkbox,
+        .item-checkbox {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            accent-color: #2f6fed;
+            cursor: pointer;
+        }
+
+        .item-checkbox {
+            margin-top: 3px;
+        }
+
+        .item-body {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .item-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+        }
+
+        .item-name {
+            font-weight: 600;
+            color: #222;
+            font-size: clamp(14px, 3.6vw, 15px);
+        }
+
+        .item-price {
+            font-weight: 600;
+            color: #222;
+            font-size: clamp(14px, 3.6vw, 15px);
+            white-space: nowrap;
+        }
+
+        .item-meta {
+            margin-top: 2px;
+            font-size: clamp(12.5px, 3.2vw, 13px);
+            color: #8b909a;
+        }
+
+        .selected-summary {
+            text-align: center;
+            font-size: clamp(12.5px, 3.2vw, 13px);
+            color: #8b909a;
+            margin-top: 20px;
+            margin-bottom: 12px;
+        }
+
+        .actions {
+            text-align: center;
+        }
+
+        button.submit {
+            appearance: none;
+            border: none;
+            cursor: pointer;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            padding: 14px 40px;
+            border-radius: 12px;
+            transition: background .15s ease;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        button.submit.submit--all {
+            background: #2e9e5b;
+        }
+
+        button.submit.submit--all:hover {
+            background: #268049;
+        }
+
+        button.submit.submit--partial {
+            background: #c98a1c;
+        }
+
+        button.submit.submit--partial:hover {
+            background: #a86f14;
+        }
+
+        button.submit.submit--none {
+            background: #9aa0ab;
+        }
+
+        button.submit.submit--none:hover {
+            background: #868c96;
+        }
+
+        button.submit:active {
+            transform: translateY(1px);
+        }
+
+        /* Small phones (iPhone SE and similar, ~360px and narrower) */
+        @media (max-width: 360px) {
+            body {
+                padding: 12px;
+            }
+
+            .card {
+                padding: 16px;
+            }
+
+            dl.summary {
+                grid-template-columns: 100px 1fr;
+            }
+
+            .item-main {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 2px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page">
+        <div class="card">
+            <h1>Заказ № {{ order.id }}</h1>
+            <div class="subtitle">Пожалуйста, отметьте позиции, которые вы согласовываете</div>
+
+            <dl class="summary">
+                <dt>Клиент</dt>
+                <dd>{{ order.client.name }}</dd>
+                <dt>Дата заказа</dt>
+                <dd>{{ order.created|date:"d.m.Y" }}</dd>
+            </dl>
+
+            {% if order.initial_requirements %}
+                <div class="requirements">{{ order.initial_requirements }}</div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <h2>Позиции на согласование</h2>
+
+            <div class="items-total">
+                Всего на согласовании: <strong>{{ total_count }}</strong> поз. на сумму <strong>{{ total_cost }}&nbsp;₽</strong>
+            </div>
+
+            <form method="post" novalidate id="approveForm">
+                {% csrf_token %}
+                <input type="hidden" name="hash" value="{{ hash }}">
+
+                <label class="select-all-row">
+                    <input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox">
+                    <span>Выбрать все позиции</span>
+                </label>
+
+                <ul class="item-list">
+                    {% for item in items %}
+                        <li>
+                            <label class="item-row">
+                                <input type="checkbox"
+                                       class="item-checkbox"
+                                       name="item_ids"
+                                       value="{{ item.id }}"
+                                       data-price="{{ item.total_price }}"
+                                       checked>
+                                <input type="hidden" name="known_item_ids" value="{{ item.id }}">
+                                <span class="item-body">
+                                    <span class="item-main">
+                                        <span class="item-name">{{ item.name|truncatechars:20 }}</span>
+                                        <span class="item-price">{{ item.total_price }}&nbsp;₽</span>
+                                    </span>
+                                    <span class="item-meta">{{ item.manufacture }} · {{ item.count }}&nbsp;шт.</span>
+                                </span>
+                            </label>
+                        </li>
+                    {% endfor %}
+                </ul>
+
+                <div class="selected-summary" id="selectedSummary"></div>
+
+                <div class="actions">
+                    <button type="submit" class="submit" id="submitApproveBtn">
+                        <span class="submit-text">Не согласовано</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        {% include 'orders/js/order_client_approve_form.js' %}
+    </script>
+
+</body>
+</html>

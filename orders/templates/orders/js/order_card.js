@@ -1,6 +1,7 @@
 const CSRF_TOKEN = "{{ csrf_token }}";
-const UPDATE_COUNT_URL_TEMPLATE = "{% url 'orders:update_order_item_count' 0 %}";
+const UPDATE_COUNT_URL_TEMPLATE = "{% url 'orders:update_order_item_count' order.id 0 %}";
 const REMOVE_ITEMS_URL = "{% url 'orders:remove_order_items' order.id %}";
+const AGREEMENT_CONFIRM_URL = "{% url 'orders:agreement_confirm' order.id %}";
 
 function updateCountUrl(itemId) {
   return UPDATE_COUNT_URL_TEMPLATE.replace('/0/', `/${itemId}/`);
@@ -16,7 +17,7 @@ document.querySelectorAll('tr[data-item-id]').forEach((row) => {
   const applyText = row.querySelector('.apply-count-text');
   const applySpinner = row.querySelector('.apply-count-spinner');
   const errorEl = row.querySelector('.count-error');
-  const priceCell = row.querySelector('[data-item-price]');
+  const priceCell = row.querySelector('[data-item-total-price]');
   const itemId = row.dataset.itemId;
 
   function hideError() {
@@ -88,7 +89,7 @@ document.querySelectorAll('tr[data-item-id]').forEach((row) => {
 
       input.value = data.item.count;
       input.dataset.originalCount = String(data.item.count);
-      priceCell.textContent = formatPrice(data.item.price);
+      priceCell.textContent = formatPrice(data.item.total_price);
       applyBtn.classList.add('d-none');
     } catch (err) {
       showError('Сетевая ошибка. Попробуйте снова.');
@@ -110,21 +111,35 @@ const confirmRemoveItemsBtn = document.getElementById('confirmRemoveItemsBtn');
 const confirmRemoveText = confirmRemoveItemsBtn.querySelector('.confirm-remove-text');
 const confirmRemoveSpinner = confirmRemoveItemsBtn.querySelector('.confirm-remove-spinner');
 
+/* ── Bulk send selected items to agreement ── */
+const agreementSelectedBtn = document.getElementById('agreementSelectedBtn');
+
 function getSelectedCheckboxes() {
   return Array.from(document.querySelectorAll('.item-select-checkbox:checked'));
 }
 
-function refreshRemoveSelectedVisibility() {
-  removeSelectedBtn.classList.toggle('d-none', getSelectedCheckboxes().length === 0);
+function refreshSelectionButtonsVisibility() {
+  const hasSelection = getSelectedCheckboxes().length > 0;
+  removeSelectedBtn.classList.toggle('d-none', !hasSelection);
+  agreementSelectedBtn.classList.toggle('d-none', !hasSelection);
 }
 
 document.querySelectorAll('.item-select-checkbox').forEach((checkbox) => {
-  checkbox.addEventListener('change', refreshRemoveSelectedVisibility);
+  checkbox.addEventListener('change', refreshSelectionButtonsVisibility);
 });
 
 removeSelectedBtn.addEventListener('click', () => {
+  const STATUS_ALLOWED_TO_REMOVE = ['DEFAULT', 'REJECTED']
   const selected = getSelectedCheckboxes();
+
   if (selected.length === 0) return;
+
+  for (const cb of selected) {
+    if (!STATUS_ALLOWED_TO_REMOVE.includes(cb.dataset.itemStatus)) {
+      alert('Вы выбрали позиции, статус которых не позволяет их удалить');
+      return
+    }
+  }
 
   removeItemsModalText.textContent = `Вы действительно хотите удалить выбранные позиции (${selected.length})?`;
   removeItemsModal.show();
@@ -159,7 +174,7 @@ confirmRemoveItemsBtn.addEventListener('click', async () => {
 
     selected.forEach((cb) => cb.closest('tr[data-item-id]').remove());
     removeItemsModal.hide();
-    refreshRemoveSelectedVisibility();
+    refreshSelectionButtonsVisibility();
   } catch (err) {
     alert('Сетевая ошибка. Попробуйте снова.');
   } finally {
@@ -167,4 +182,22 @@ confirmRemoveItemsBtn.addEventListener('click', async () => {
     confirmRemoveText.classList.remove('d-none');
     confirmRemoveSpinner.classList.add('d-none');
   }
+});
+
+agreementSelectedBtn.addEventListener('click', () => {
+  const selected = getSelectedCheckboxes();
+  if (selected.length === 0) return;
+
+  const selectedIds = new Set(selected.map((cb) => cb.dataset.itemId));
+  const missingApproved = Array.from(document.querySelectorAll('tr[data-item-id][data-status="APPROVED"]'))
+    .filter((row) => !selectedIds.has(row.dataset.itemId));
+
+  if (missingApproved.length > 0) {
+    alert('В заказе есть позиции, которые клиент ранее согласовал, но они не включены в выбранный список. '
+      + 'Добавьте все согласованные ранее позиции и повторите попытку.');
+    return;
+  }
+
+  const itemIds = selected.map((cb) => cb.dataset.itemId).join(',');
+  window.location.href = `${AGREEMENT_CONFIRM_URL}?item_ids=${itemIds}`;
 });

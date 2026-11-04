@@ -1,0 +1,18 @@
+{% extends "orders/errors/_base.html" %}
+
+{% block page-title %}{{ error_title|default:"Доступ запрещён" }}{% endblock page-title %}
+
+{% block title_default %}Доступ запрещён{% endblock title_default %}
+
+{% block message_default %}У вас нет прав для просмотра этого заказа. Возможно, ссылка была выдана для другого клиента.{% endblock message_default %}
+
+{% block hint_default %}Если вы считаете, что это ошибка, свяжитесь с вашим менеджером.{% endblock hint_default %}
+
+{% block icon_theme %}error-icon--danger{% endblock icon_theme %}
+
+{% block icon_svg %}
+    <rect x="5" y="11" width="14" height="10" rx="2"
+          stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M8 11V7a4 4 0 0 1 8 0v4"
+          stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+{% endblock icon_svg %}

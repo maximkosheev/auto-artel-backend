@@ -14,12 +14,12 @@ class OrderItemUpdateCountTests(TestCase):
 
         self.manager_user = User.objects.create_user(username='manager1', password='pass12345')
         self.manager_user.groups.add(manager_group)
-        Manager.objects.create(user=self.manager_user, name='Test Manager', phone='+70000000000')
+        manager = Manager.objects.create(user=self.manager_user, name='Test Manager', phone='+70000000000')
 
         client_user = User.objects.create_user(username='client1', password='pass12345')
         self.client_profile = Client.objects.create(user=client_user, name='Test Client', phone='+71111111111')
 
-        self.order = Order.objects.create(client=self.client_profile, status='NEW', initial_requirements='req')
+        self.order = Order.objects.create(client=self.client_profile, manager=manager, status='NEW', initial_requirements='req')
         self.item = OrderItem.objects.create(
             order=self.order,
             article_number='ART1',
@@ -28,12 +28,13 @@ class OrderItemUpdateCountTests(TestCase):
             count=2,
             purchase_price=Decimal('100.00'),
             discount=Decimal('0.00'),
-            price=Decimal('300.00'),
+            multiplicity=1,
+            total_count=1000
         )
 
-    def update_count(self, item_id, count):
+    def update_count(self, order_pk, item_id, count):
         return self.client.patch(
-            reverse('orders:update_order_item_count', args=[item_id]),
+            reverse('orders:update_order_item_count', args=[order_pk, item_id]),
             data=json.dumps({'count': count}),
             content_type='application/json',
         )
@@ -52,46 +53,46 @@ class OrderItemUpdateCountTests(TestCase):
     def test_update_count_recalculates_price(self):
         self.client.login(username='manager1', password='pass12345')
 
-        response = self.update_count(self.item.id, 5)
+        response = self.update_count(self.order.id, self.item.id, 5)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {
             'success': True,
-            'item': {'id': self.item.id, 'count': 5, 'price': '650'},
+            'item': {'id': self.item.id, 'count': 5, 'total_price': '650.00'},
         })
 
         self.item.refresh_from_db()
         self.assertEqual(self.item.count, 5)
-        self.assertEqual(self.item.price, Decimal('650.00'))
+        self.assertEqual(self.item.total_price, Decimal('650.00'))
 
     def test_update_count_without_purchase_price_scales_existing_price(self):
         self.client.login(username='manager1', password='pass12345')
         self.item.purchase_price = None
         self.item.count = 4
-        self.item.price = Decimal('400.00')
         self.item.save()
 
-        response = self.update_count(self.item.id, 6)
+        response = self.update_count(self.order.id, self.item.id, 6)
 
         self.assertEqual(response.status_code, 200)
         self.item.refresh_from_db()
         self.assertEqual(self.item.count, 6)
-        self.assertEqual(self.item.price, Decimal('600.00'))
+        self.assertEqual(self.item.price, Decimal('1.30'))
+        self.assertEqual(self.item.total_price, Decimal('50.00'))
 
     def test_update_count_rejects_non_integer_value(self):
         self.client.login(username='manager1', password='pass12345')
 
-        response = self.update_count(self.item.id, 'abc')
+        response = self.update_count(self.order.id, self.item.id, 'abc')
 
         self.assertEqual(response.status_code, 400)
         self.item.refresh_from_db()
         self.assertEqual(self.item.count, 2)
-        self.assertEqual(self.item.price, Decimal('300.00'))
+        self.assertEqual(self.item.price, Decimal('130.00'))
 
     def test_update_count_rejects_zero(self):
         self.client.login(username='manager1', password='pass12345')
 
-        response = self.update_count(self.item.id, 0)
+        response = self.update_count(self.order.id, self.item.id, 0)
 
         self.assertEqual(response.status_code, 400)
         self.item.refresh_from_db()
@@ -101,7 +102,7 @@ class OrderItemUpdateCountTests(TestCase):
         self.client.login(username='manager1', password='pass12345')
 
         response = self.client.patch(
-            reverse('orders:update_order_item_count', args=[self.item.id]),
+            reverse('orders:update_order_item_count', args=[self.order.id, self.item.id]),
             data='not-json',
             content_type='application/json',
         )
@@ -111,12 +112,12 @@ class OrderItemUpdateCountTests(TestCase):
     def test_update_count_returns_404_for_unknown_item(self):
         self.client.login(username='manager1', password='pass12345')
 
-        response = self.update_count(999999, 5)
+        response = self.update_count(self.order.id, 999999, 5)
 
         self.assertEqual(response.status_code, 404)
 
     def test_update_count_requires_login(self):
-        response = self.update_count(self.item.id, 5)
+        response = self.update_count(self.order.id, self.item.id, 5)
 
         self.assertEqual(response.status_code, 302)
         self.item.refresh_from_db()
@@ -126,7 +127,7 @@ class OrderItemUpdateCountTests(TestCase):
         User.objects.create_user(username='outsider', password='pass12345')
         self.client.login(username='outsider', password='pass12345')
 
-        response = self.update_count(self.item.id, 5)
+        response = self.update_count(self.order.id, self.item.id, 5)
 
         # Authenticated but unauthorized users get 403 (vs. a login redirect for anonymous users).
         self.assertEqual(response.status_code, 403)

@@ -1,0 +1,16 @@
+{% extends "orders/errors/_base.html" %}
+
+{% block page-title %}{{ error_title|default:"Заказ уже обработан" }}{% endblock page-title %}
+
+{% block title_default %}Заказ уже согласован{% endblock title_default %}
+
+{% block message_default %}Эта ссылка больше не действительна: статус заказа уже изменился с момента её отправки — вероятно, согласование было выполнено ранее.{% endblock message_default %}
+
+{% block hint_default %}Актуальную информацию по заказу уточняйте у вашего менеджера.{% endblock hint_default %}
+
+{% block icon_theme %}error-icon--warning{% endblock icon_theme %}
+
+{% block icon_svg %}
+    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+    <path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+{% endblock icon_svg %}

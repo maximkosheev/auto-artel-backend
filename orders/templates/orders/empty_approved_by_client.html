@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>{% block page-title %}{{ success_title|default:"Заказ не согласован" }}{% endblock %}</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(160deg, #f7f8fa 0%, #eef0f3 100%);
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .error-card {
+            width: 100%;
+            max-width: 440px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 12px 32px rgba(20, 20, 30, 0.08);
+            padding: 40px 32px;
+            text-align: center;
+        }
+
+        .error-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #9aa0ab;
+        }
+
+        .error-icon svg {
+            width: 32px;
+            height: 32px;
+            color: #d32f2f;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #222;
+            margin-bottom: 12px;
+        }
+
+        .error-message {
+            font-size: 15px;
+            line-height: 1.55;
+            color: #5a5f6a;
+            margin-bottom: 8px;
+        }
+
+        .error-hint {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #8b909a;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eef0f3;
+        }
+    </style>
+
+    {% block extra_style %}{% endblock extra_style %}
+</head>
+<body>
+
+    <div class="error-card">
+        <div class="error-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M8 12.5l2.5 2.5L16 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+
+        <h1>{{ success_title|default:"Заказ не согласован" }}</h1>
+
+        <p class="error-message">
+            {{ success_message|default:"Спасибо за обратную связь! Менеджер продолжит работу по вашему заказу. Ожидайте новых сообщений" }}
+        </p>
+
+        <p class="error-hint">
+            {{ success_hint|default:"Если у вас есть вопросы по заказу, напишите вашему менеджеру в чат." }}
+        </p>
+    </div>
+
+    {% block extra_js %}{% endblock extra_js %}
+
+</body>
+</html>
