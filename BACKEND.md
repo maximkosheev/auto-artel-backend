@@ -13,8 +13,12 @@ The Docker image uses Python 3.12 (`Dockerfile`). `requirements.txt` pins Django
 - `parts_providers`: provider abstraction, ARMTEK client, Pydantic schemas and provider tests.
 - `auto_artel`: project settings, routing, ASGI/WSGI, broker and cache helpers.
 - `utils`: date and phone helpers.
+- `clients`: views, templates to operate with clients (show all clients, filter by name, phone or vehicle VIN)
 
 Business rules are not uniformly separated into service classes; much of the order workflow is implemented in `orders/views.py`. Before adding a service layer, follow the existing feature's shape and isolate new complexity only when it materially improves reuse or testing.
+
+## Common rules
+1. All django views must be as class.
 
 ## Data and migrations
 

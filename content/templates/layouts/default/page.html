@@ -23,41 +23,39 @@
 <body>
 
 <nav class="navbar navbar-expand-md navbar-dark bg-dark static-top">
-
-    <a class="navbar-brand" href="{% url 'home:index' %}">Домой</a>
-
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-
-    <div class="collapse navbar-collapse" id="navbarsExampleDefault">
-        <ul class="navbar-nav mr-auto">
-            {% if request.user.is_authenticated %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'orders:list' %}">Заказы</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'orders:parts_search' %}">Поиск запчастей</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'chat:list' %}">Сообщения</a>
-                </li>
-                {% if request.user.is_superuser %}
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'home:index' %}">Домой</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav mr-auto">
+                {% if request.user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'admin:login' %}">Панель администратора</a>
+                        <a class="nav-link" href="{% url 'clients:list' %}">Клиенты</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'orders:list' %}">Заказы</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'orders:parts_search' %}">Поиск запчастей</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'chat:list' %}">Сообщения</a>
+                    </li>
+                    {% if request.user.is_superuser %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'admin:login' %}">Панель администратора</a>
+                        </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'home:logout_confirm' %}">Выйти</a>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'home:login' %}">Войти</a>
                     </li>
                 {% endif %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'home:logout_confirm' %}">Выйти</a>
-                </li>
-            {% else %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'home:login' %}">Войти</a>
-                </li>
-            {% endif %}
-        </ul>
+            </ul>
+        </div>
     </div>
-
 </nav>
 
 <div class="container-fluid mt-3">

@@ -1,22 +1,13 @@
-from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db.models import Count, Q, Max
 from django.shortcuts import render
 from django.views import generic
 
+from auto_artel.mixins import ManagerMixin
 from chat.models import ChatMessage
 from orders.models import Client
 
 
-def is_manager(user):
-    return user.groups.filter(name='manager').exists()
-
-
-class IsManagerMixin(UserPassesTestMixin):
-    def test_func(self):
-        return is_manager(self.request.user)
-
-
-class ChatListView(IsManagerMixin, generic.TemplateView):
+class ChatListView(ManagerMixin, generic.TemplateView):
     template_name = "chat/clients.html"
 
     def get(self, request, *args, **kwargs):
@@ -35,7 +26,7 @@ class ChatListView(IsManagerMixin, generic.TemplateView):
         })
 
 
-class ChatWithClient(IsManagerMixin, generic.TemplateView):
+class ChatWithClient(ManagerMixin, generic.TemplateView):
     template_name = 'chat/chat_with_client.html'
 
     def get_context_data(self, **kwargs):

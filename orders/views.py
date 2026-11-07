@@ -5,7 +5,6 @@ from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Q
 from django.http import JsonResponse
@@ -16,12 +15,13 @@ from django.views import generic, View
 from django.views.generic.edit import FormMixin
 
 from auto_artel.broker import broker
+from auto_artel.mixins import ManagerMixin
 from chat.models import ChatMessage
 from parts_providers import ProviderApiError
 from utils.date_utils import parse_date
 from .errors import BusinessError
 from .forms import OrderForm, OrderNewForm
-from .models import Order, Manager, OrderItem, Client, ArmTekOrder
+from .models import Order, OrderItem, Client, ArmTekOrder
 from .urls_helper import OrderLinkGenerator, InvalidOrderLinkToken
 
 ORDER_CLIENT_STATUSES = {
@@ -64,21 +64,6 @@ def order_client_status_is_after_or_equal(client_status, after_or_equal):
     after_id = ORDER_CLIENT_STATUSES[after_or_equal]["index"]
     client_status_id = ORDER_CLIENT_STATUSES[client_status]["index"]
     return after_id <= client_status_id
-
-
-def is_manager(user):
-    return user.groups.filter(name='manager').exists()
-
-
-class ManagerMixin(UserPassesTestMixin):
-    def get_user(self):
-        return self.request.user
-
-    def test_func(self):
-        return is_manager(self.get_user())
-
-    def get_manager(self) -> Manager:
-        return Manager.objects.get(user=self.get_user())
 
 
 class OrderStatusMixin:
