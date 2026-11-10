@@ -19,6 +19,25 @@
     border: 1px solid #dee2e6;
     border-radius: .375rem;
     background: #fff;
+    overflow-y: auto;
+}
+
+.client-details-content {
+    padding: 1.25rem;
+}
+
+.client-tab-pane {
+    padding: 1rem;
+}
+
+.client-info-row {
+    margin-bottom: 1rem;
+}
+
+.client-info-label {
+    display: block;
+    color: #6c757d;
+    font-size: .875rem;
 }
 
 .clients-filters {
@@ -29,6 +48,9 @@
 }
 
 .clients-results {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -38,8 +60,33 @@
 }
 
 .client-row {
-    padding: .75rem 1rem;
+    display: block;
     border-bottom: 1px solid #dee2e6;
+}
+
+.client-row a {
+    display: block;
+    padding: .75rem 1rem;
+    color: inherit;
+    text-decoration: none;
+}
+
+.client-row a:hover,
+.client-row a:focus-visible {
+    background: #f8f9fa;
+    text-decoration: none;
+}
+
+.client-row.active {
+    color: #fff;
+    background: #084298;
+    border-left: 4px solid #052c65;
+    font-weight: 600;
+}
+
+.client-row.active a:hover,
+.client-row.active a:focus-visible {
+    background: #084298;
 }
 
 .client-row:last-child {

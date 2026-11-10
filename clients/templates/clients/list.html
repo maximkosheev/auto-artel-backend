@@ -9,32 +9,7 @@
 
 {% block content %}
 <div class="clients-layout">
-    <section class="clients-panel" aria-label="Список клиентов">
-        <form method="get" action="{% url 'clients:list' %}" class="clients-filters">
-            <div class="mb-2">
-                <label class="form-label" for="client-name">Имя</label>
-                <input class="form-control" id="client-name" name="client_name" value="{{ filter_name }}">
-            </div>
-            <div class="mb-2">
-                <label class="form-label" for="client-phone">Телефон</label>
-                <input class="form-control" id="client-phone" name="client_phone" value="{{ filter_phone }}">
-            </div>
-            <div class="mb-3">
-                <label class="form-label" for="client-vin">VIN</label>
-                <input class="form-control" id="client-vin" name="vin" value="{{ filter_vin }}">
-            </div>
-            <button class="btn btn-primary" type="submit">Применить</button>
-            <a class="btn btn-outline-secondary" href="{% url 'clients:list' %}">Очистить</a>
-        </form>
-
-        <div class="clients-results" aria-live="polite">
-            {% for client in clients %}
-                <div class="client-row">{{ client.name }}</div>
-            {% empty %}
-                <p class="p-3 mb-0 text-muted">Клиенты не найдены.</p>
-            {% endfor %}
-        </div>
-    </section>
+    {% include 'clients/_client_list_panel.html' %}
 
     <section class="client-details-panel" aria-label="Подробная информация о клиенте"></section>
 </div>
