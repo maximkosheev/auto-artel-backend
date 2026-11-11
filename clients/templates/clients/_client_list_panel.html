@@ -29,3 +29,39 @@
         {% endfor %}
     </div>
 </section>
+
+<script>
+    (() => {
+        const nameInput = document.getElementById('client-name');
+        const results = document.querySelector('.clients-results');
+        if (!nameInput || !results) return;
+
+        const rows = Array.from(results.querySelectorAll('.client-row'));
+        let emptyMessage = results.querySelector('.clients-empty-message, p');
+        if (emptyMessage) emptyMessage.classList.add('clients-empty-message');
+
+        nameInput.addEventListener('input', () => {
+            const query = nameInput.value.trim().toLocaleLowerCase();
+            let visibleCount = 0;
+
+            rows.forEach((row) => {
+                const name = row.querySelector('a').textContent.trim().toLocaleLowerCase();
+                const matches = name.includes(query);
+                row.hidden = !matches;
+                if (matches) visibleCount += 1;
+            });
+
+            if (visibleCount === 0) {
+                if (!emptyMessage) {
+                    emptyMessage = document.createElement('p');
+                    emptyMessage.className = 'p-3 mb-0 text-muted clients-empty-message';
+                    emptyMessage.textContent = 'Клиенты не найдены.';
+                    results.append(emptyMessage);
+                }
+                emptyMessage.hidden = false;
+            } else if (emptyMessage) {
+                emptyMessage.hidden = true;
+            }
+        });
+    })();
+</script>
