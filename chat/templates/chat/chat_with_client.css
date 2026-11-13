@@ -5,6 +5,70 @@
     font-size: 18px;
     font-weight: 600;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.client-info-toggle {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #495057;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 28px;
+    cursor: pointer;
+}
+
+.client-info-toggle:hover,
+.client-info-toggle:focus-visible {
+    background: #dee2e6;
+}
+
+.client-info-group {
+    margin: 0 0 16px;
+    padding: 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.client-info-group:last-child {
+    margin-bottom: 0;
+}
+
+.client-info-group legend {
+    float: none;
+    width: auto;
+    margin: 0;
+    padding: 0 6px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.client-info-row {
+    display: flex;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.client-info-label {
+    min-width: 145px;
+    font-weight: 600;
+}
+
+.client-info-modal .modal-body {
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+}
+
+.vin-copy-feedback {
+    margin-left: 6px;
+    color: #198754;
+    font-size: 0.875rem;
 }
 
 #chatContent {

@@ -1,0 +1,92 @@
+<div class="modal fade client-info-modal" id="clientInfoModal" tabindex="-1"
+     aria-labelledby="clientInfoModalTitle" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="clientInfoModalTitle">Информация о клиенте</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <fieldset class="client-info-group">
+                    <legend>Основная информация</legend>
+                    <div class="client-info-row">
+                        <span class="client-info-label">Имя</span>
+                        <span>{{ selected_client.name }}</span>
+                    </div>
+                    <div class="client-info-row">
+                        <span class="client-info-label">Телефон</span>
+                        <span>{{ selected_client.phone }}</span>
+                    </div>
+                    <div class="client-info-row">
+                        <span class="client-info-label">Дата регистрации</span>
+                        <span></span>
+                    </div>
+                </fieldset>
+
+                <fieldset class="client-info-group">
+                    <legend>Транспортные средства</legend>
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th scope="col">Производитель</th>
+                                <th scope="col">Модель</th>
+                                <th scope="col">Год</th>
+                                <th scope="col">VIN</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for vehicle in vehicles %}
+                                <tr>
+                                    <td>{{ vehicle.manufacture }}</td>
+                                    <td>{{ vehicle.model }}</td>
+                                    <td>{{ vehicle.year }}</td>
+                                    <td>
+                                        {{ vehicle.vin|default_if_none:"" }}
+                                        {% if vehicle.vin %}
+                                            <button type="button" class="btn btn-outline-secondary btn-sm copy-vin-button"
+                                                    data-vin="{{ vehicle.vin }}" aria-label="Скопировать VIN">
+                                                <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                            </button>
+                                            <span class="vin-copy-feedback" aria-live="polite" hidden></span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="4" class="text-muted">Транспортные средства не найдены.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </fieldset>
+
+                <fieldset class="client-info-group">
+                    <legend>Последние заказы</legend>
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th scope="col">Заказ</th>
+                                <th scope="col">Дата</th>
+                                <th scope="col">Статус</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for order in recent_orders %}
+                                <tr>
+                                    <td><a href="{% url 'orders:detail' order.id %}">Заказ № {{ order.id }}</a></td>
+                                    <td>{{ order.created|date:"d.m.Y H:i" }}</td>
+                                    <td>{{ order.get_client_status_display }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="3" class="text-muted">Заказы не найдены.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+    </div>
+</div>

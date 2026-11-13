@@ -8,7 +8,12 @@
 
 {% block chat_with_client %}
 <div id="chatContent">
-    <div class="chat-header" id="chatHeader">{{ selected_client.name }}</div>
+    <div class="chat-header" id="chatHeader">
+        <span>{{ selected_client.name }}</span>
+        <button type="button" class="client-info-toggle" data-bs-toggle="modal"
+                data-bs-target="#clientInfoModal" aria-label="Информация о клиенте"
+                title="Информация о клиенте">i</button>
+    </div>
 
     <div class="chat-messages" id="messagesContainer">
         <!-- Здесь будут отображаться сообщение. Элементы для каждого сообщения создаются через createMessageElement() -->
@@ -38,6 +43,8 @@
         </div>
     </div>
 </div>
+
+{% include 'chat/_client_info_modal.html' %}
 
 <!-- Context Menu -->
 <div id="contextMenu" class="context-menu">
@@ -81,6 +88,29 @@
                 e.preventDefault();
                 sendMessage();
             }
+        });
+
+        document.querySelectorAll('.copy-vin-button').forEach(function(button) {
+            button.addEventListener('click', async function() {
+                const vin = button.dataset.vin;
+                const feedback = button.nextElementSibling;
+                try {
+                    await navigator.clipboard.writeText(vin);
+                    feedback.textContent = 'Скопировано';
+                    feedback.hidden = false;
+                    window.clearTimeout(feedback.hideTimeout);
+                    feedback.hideTimeout = window.setTimeout(function() {
+                        feedback.hidden = true;
+                    }, 5000);
+                } catch (error) {
+                    feedback.textContent = 'Не удалось скопировать';
+                    feedback.hidden = false;
+                    window.clearTimeout(feedback.hideTimeout);
+                    feedback.hideTimeout = window.setTimeout(function() {
+                        feedback.hidden = true;
+                    }, 5000);
+                }
+            });
         });
     });
 

@@ -4,7 +4,7 @@ from django.views import generic
 
 from auto_artel.mixins import ManagerMixin
 from chat.models import ChatMessage
-from orders.models import Client
+from orders.models import Client, Order
 
 
 class ChatListView(ManagerMixin, generic.TemplateView):
@@ -41,5 +41,7 @@ class ChatWithClient(ManagerMixin, generic.TemplateView):
         return {
             'clients': clients,
             'selected_client': client,
-            'messages': messages
+            'messages': messages,
+            'vehicles': client.vehicle_list.all(),
+            'recent_orders': Order.objects.filter(client=client).order_by('-created', '-pk')[:5],
         }
