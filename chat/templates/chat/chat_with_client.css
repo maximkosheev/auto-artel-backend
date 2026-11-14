@@ -7,7 +7,8 @@
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 8px;
 }
 
 .client-info-toggle {
@@ -66,9 +67,14 @@
 }
 
 .vin-copy-feedback {
-    margin-left: 6px;
-    color: #198754;
+    position: fixed;
+    z-index: 1080;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #212529;
+    color: #fff;
     font-size: 0.875rem;
+    pointer-events: none;
 }
 
 #chatContent {

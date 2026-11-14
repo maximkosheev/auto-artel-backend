@@ -94,6 +94,9 @@
             button.addEventListener('click', async function() {
                 const vin = button.dataset.vin;
                 const feedback = button.nextElementSibling;
+                const buttonRect = button.getBoundingClientRect();
+                feedback.style.left = buttonRect.left + 'px';
+                feedback.style.top = Math.max(8, buttonRect.top - 36) + 'px';
                 try {
                     await navigator.clipboard.writeText(vin);
                     feedback.textContent = 'Скопировано';
