@@ -13,6 +13,14 @@
 
     <section class="client-details-panel" aria-label="Подробная информация о клиенте">
         <div class="client-details-content">
+            <div class="d-flex align-items-center gap-2">
+                <h5>{{ client.name }}</h5>
+                <a href="{% url 'chat:chat_with_client' client.id %}"
+                   title="Переписка с клиентом"
+                   class="d-inline-flex align-items-center">
+                    <img src="{% static 'images/chat.svg' %}" alt="" height="24">
+                </a>
+            </div>
             <ul class="nav nav-tabs" id="client-detail-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="general-tab" data-bs-toggle="tab"

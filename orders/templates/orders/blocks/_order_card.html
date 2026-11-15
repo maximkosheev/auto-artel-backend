@@ -3,6 +3,11 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0">Позиции заказа</h5>
+            <a href="{% url 'chat:chat_with_client' order.client.id %}"
+               title="Переписка с клиентом"
+               class="d-inline-flex align-items-center">
+                <img src="{% static 'images/chat.svg' %}" alt="" height="24">
+            </a>
             <button type="button" id="removeSelectedBtn" class="btn btn-danger btn-sm d-none">
                 <img src="{% static 'images/trash_bin.svg' %}" width="16" height="16" alt="">
                 Удалить

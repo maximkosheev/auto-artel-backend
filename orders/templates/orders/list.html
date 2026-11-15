@@ -75,17 +75,17 @@
                     <tr class="order-row status-{{ order.status|lower }}-{{ order.client_status|lower }}" data-order-id="{{ order.id }}" data-depth="0">
                         <td class="order-number-cell">
                             <span class="tree-toggle{% if not order.has_children %} tree-toggle-empty{% endif %}" data-order-id="{{ order.id }}"></span>
-                            <a href="{% url 'orders:detail' order.id %}" target="_blank" class="order-number-link">{{ order.h_id }}</a>
+                            <a href="{% url 'orders:detail' order.id %}" class="order-number-link">{{ order.h_id }}</a>
                         </td>
-                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.client.name }}</a></td>
-                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.manager.name }}</a></td>
-                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">{{ order.created|date:"M d, Y H:i" }}</a></td>
-                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">
+                        <td><a href="{% url 'orders:detail' order.id %}" class="d-block text-decoration-none text-dark p-3">{{ order.client.name }}</a></td>
+                        <td><a href="{% url 'orders:detail' order.id %}" class="d-block text-decoration-none text-dark p-3">{{ order.manager.name }}</a></td>
+                        <td><a href="{% url 'orders:detail' order.id %}" class="d-block text-decoration-none text-dark p-3">{{ order.created|date:"M d, Y H:i" }}</a></td>
+                        <td><a href="{% url 'orders:detail' order.id %}" class="d-block text-decoration-none text-dark p-3">
                             <span class="status-badge status-{{ order.status|lower }}-{{ order.client_status|lower }}">
                                 {{ order.get_status_display }}/{{ order.get_client_status_display }}
                             </span>
                         </a></td>
-                        <td><a href="{% url 'orders:detail' order.id %}" target="_blank" class="d-block text-decoration-none text-dark p-3">
+                        <td><a href="{% url 'orders:detail' order.id %}" class="d-block text-decoration-none text-dark p-3">
                             {{ order.initial_requirements|truncatechars:50}}
                         </a></td>
                     </tr>
