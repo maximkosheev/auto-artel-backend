@@ -8,6 +8,7 @@ const CART_ICON_URL   = "{% static 'images/shopping_cart.svg' %}";
 
 let currentItems = [];
 let currentManufacture = "";
+let defaultSortField = "article_number";
 let sortField = "manufacture";
 let sortDir = "asc";
 
@@ -258,15 +259,38 @@ function sortGroup(items) {
     const va = a[sortField];
     const vb = b[sortField];
 
-    if (va == null && vb == null) return 0;
-    if (va == null) return 1;
-    if (vb == null) return -1;
+    let compareNulls = compareNullsLast(va, vb);
+    if (compareNulls !== null) {
+      return compareNulls;
+    }
 
     if (sortField === "price") {
       return (parseFloat(va) - parseFloat(vb)) * dir;
     }
-    return String(va).localeCompare(String(vb)) * dir;
+
+    cr = String(va).localeCompare(String(vb));
+
+    if (cr === 0) {
+      const va2 = a[defaultSortField];
+      const vb2 = b[defaultSortField];
+
+      compareNulls = compareNullsLast(va2, vb2);
+      if (compareNulls !== null) {
+        return compareNulls;
+      }
+
+      cr = String(va2).localeCompare(String(vb2));
+    }
+
+    return cr * dir;
   });
+}
+
+function compareNullsLast(a, b) {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return null;
 }
 
 function updateSortHeaders() {
