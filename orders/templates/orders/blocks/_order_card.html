@@ -20,7 +20,7 @@
         {% endif %}
     </div>
     {% if order_items|length > 0 %}
-    <table class="table order-card-table">
+    <table class="table table-hover table-bordered order-card-table">
         <thead class="thead-dark">
         <tr>
             <th></th>
@@ -44,6 +44,16 @@
         {% for item in order_items %}
         <tr data-item-id="{{ item.id }}" data-status="{{ item.status }}">
             <td>
+                <div class="order-item-tools">
+                    <a href="{% url 'orders:items_search' item.id %}"
+                       title="Найти у поставщика" aria-label="Найти у поставщика">
+                        <img src="{% static 'images/link-external.svg' %}" width="20" height="20" alt="">
+                    </a>
+                    <a href="{% url 'orders:items_search' item.id %}"
+                       title="Процентовать" aria-label="Процентовать">
+                        <img src="{% static 'images/update.svg' %}" width="20" height="20" alt="">
+                    </a>
+                </div>
                 <input type="checkbox" class="form-check-input item-select-checkbox" data-item-id="{{ item.id }}" data-item-status="{{ item.status }}">
             </td>
             <th scope="row">{{ item.article_number }}</th>
