@@ -20,7 +20,7 @@ function createMessageElement(message) {
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
     if (isMessageDeleted(message)) {
-        contentDiv.classList.add('deleted-message');
+
     }
 
     if (message.reply_to) {
@@ -42,8 +42,10 @@ function createMessageElement(message) {
     const timeDiv = document.createElement('div');
     timeDiv.className = 'message-time';
     if (isMessageDeleted(message)) {
+         contentDiv.classList.add('deleted-message');
          timeDiv.textContent = 'удалено ' + message.deleted;
     } else if (isMessageEdited(message)) {
+         contentDiv.classList.add('edited-message');
          timeDiv.textContent = 'изменено ' + message.edited;
     } else {
          timeDiv.textContent = message.created;

@@ -54,7 +54,11 @@
 }
 
 .message-content.deleted-message {
-    border: 1px solid red;
+    border: 2px solid red;
+}
+
+.message-content.edited-message {
+    border: 2px solid orange;
 }
 
 .manager-message .message-content {
